@@ -1,0 +1,17 @@
+import React, { useEffect, useState } from 'react';
+import api from '../../utils/api';
+
+const ContentManager = () => {
+  const [gallery, setGallery] = useState([]);
+  const [videos, setVideos] = useState([]);
+  const [galleryForm, setGalleryForm] = useState({ title: '', image: '', type: 'service', file: null });
+  const [videoForm, setVideoForm] = useState({ title: '', url: '', file: null });
+  const load = async () => { const [g, v] = await Promise.all([api.get('/content/gallery'), api.get('/content/videos')]); setGallery(g.data.gallery || []); setVideos(v.data.videos || []); };
+  useEffect(() => { load().catch(() => {}); }, []);
+  const upload = async file => { const body = new FormData(); body.append('file', file); const { data } = await api.post('/upload', body, { headers: { 'Content-Type': 'multipart/form-data' } }); return data.url; };
+  const addGallery = async event => { event.preventDefault(); const image = galleryForm.file ? await upload(galleryForm.file) : galleryForm.image; await api.post('/content/gallery', { title: galleryForm.title, image, type: galleryForm.type }); setGalleryForm({ title: '', image: '', type: 'service', file: null }); load(); };
+  const addVideo = async event => { event.preventDefault(); const url = videoForm.file ? await upload(videoForm.file) : videoForm.url; await api.post('/content/videos', { title: videoForm.title, url }); setVideoForm({ title: '', url: '', file: null }); load(); };
+  return <div className="space-y-6"><h1 className="text-2xl font-black">Gallery & Videos</h1><div className="grid md:grid-cols-2 gap-4"><form onSubmit={addGallery} className="bg-white p-5 rounded-2xl space-y-3"><h2 className="font-black">Add Gallery Image</h2><input required placeholder="Title" value={galleryForm.title} onChange={e => setGalleryForm({ ...galleryForm, title: e.target.value })} className="w-full p-3 border rounded-xl" /><input type="file" accept="image/*" onChange={e => setGalleryForm({ ...galleryForm, file: e.target.files[0] })} className="w-full p-3 border rounded-xl" /><button className="px-4 py-2 bg-purple-700 text-white rounded-xl font-bold">Upload Image</button></form><form onSubmit={addVideo} className="bg-white p-5 rounded-2xl space-y-3"><h2 className="font-black">Add Video</h2><input required placeholder="Title" value={videoForm.title} onChange={e => setVideoForm({ ...videoForm, title: e.target.value })} className="w-full p-3 border rounded-xl" /><input required type="file" accept="video/*" onChange={e => setVideoForm({ ...videoForm, file: e.target.files[0] })} className="w-full p-3 border rounded-xl" /><button className="px-4 py-2 bg-pink-600 text-white rounded-xl font-bold">Upload Video</button></form></div><div className="grid md:grid-cols-2 gap-4"><div className="space-y-2">{gallery.map(item => <div key={item._id} className="bg-white p-3 rounded-xl flex justify-between"><span>{item.title}</span><button onClick={() => api.delete(`/content/gallery/${item._id}`).then(load)} className="text-rose-600 font-bold">Delete</button></div>)}</div><div className="space-y-2">{videos.map(item => <div key={item._id} className="bg-white p-3 rounded-xl flex justify-between"><span>{item.title}</span><button onClick={() => api.delete(`/content/videos/${item._id}`).then(load)} className="text-rose-600 font-bold">Delete</button></div>)}</div></div></div>;
+};
+
+export default ContentManager;
