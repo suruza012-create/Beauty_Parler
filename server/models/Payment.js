@@ -17,7 +17,7 @@ const PaymentSchema = new mongoose.Schema({
   },
   method: {
     type: String,
-    enum: ['bkash', 'nagad', 'card', 'cash', 'rocket'],
+    enum: ['bkash', 'nagad', 'card', 'cash', 'rocket', 'bank'],
     required: true
   },
   mobileNumber: {

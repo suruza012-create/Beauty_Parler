@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
-import { apiPost } from '../utils/api';
+import { apiGet, apiPost } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 
@@ -11,7 +11,16 @@ const Checkout = () => {
   const { items, clearCart } = useCart();
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({ name: user?.name || '', phone: user?.phone || '', address: '', paymentMethod: 'cash' });
+  const [form, setForm] = useState({ name: user?.name || '', phone: user?.phone || '', address: '', paymentMethod: 'cash', senderNumber: '', transactionId: '' });
+  const [paymentMethods, setPaymentMethods] = useState([]);
+
+  useEffect(() => {
+    apiGet('/content/settings')
+      .then(data => setPaymentMethods((data.settings?.paymentMethods || []).filter(method => method.isActive !== false)))
+      .catch(() => setPaymentMethods([]));
+  }, []);
+
+  const selectedPaymentMethod = paymentMethods.find(method => String(method._id) === form.paymentMethod);
 
   if (success) {
     return (
@@ -35,10 +44,22 @@ const Checkout = () => {
           if (!user) return setError('Please login before placing an order.');
           if (!items.length) return setError('Your cart is empty.');
           try {
-            const paymentMethod = form.paymentMethod === 'mobile' ? 'bkash' : form.paymentMethod;
+            if (selectedPaymentMethod && !form.transactionId.trim()) {
+              return setError('পেমেন্ট করার পর Transaction ID লিখুন।');
+            }
+            if (selectedPaymentMethod && ['bkash', 'nagad', 'rocket'].includes(selectedPaymentMethod.provider) && !form.senderNumber.trim()) {
+              return setError('যে নম্বর থেকে টাকা পাঠিয়েছেন সেটি লিখুন।');
+            }
+            const paymentMethod = selectedPaymentMethod?.provider || 'cash';
             const orderResult = await apiPost('/order', { items: items.map(item => ({ productId: item.productId, quantity: item.quantity })), deliveryAddress: form.address, phone: form.phone, paymentMethod });
-            if (form.paymentMethod !== 'cash' && orderResult.order?._id) {
-              await apiPost('/payment', { orderId: orderResult.order._id, amount: orderResult.order.totalAmount, method: paymentMethod });
+            if (selectedPaymentMethod && orderResult.order?._id) {
+              await apiPost('/payment', {
+                orderId: orderResult.order._id,
+                amount: orderResult.order.totalAmount,
+                method: paymentMethod,
+                mobileNumber: form.senderNumber,
+                transactionId: form.transactionId.trim()
+              });
             }
             clearCart();
             setSuccess(true);
@@ -52,9 +73,26 @@ const Checkout = () => {
             <label className="text-xs font-bold">Payment Method</label>
             <div className="grid grid-cols-2 gap-2 text-xs font-bold">
               <label className="p-3 bg-slate-50 border rounded-2xl flex items-center gap-2"><input type="radio" name="pay" value="cash" checked={form.paymentMethod === 'cash'} onChange={e => setForm({ ...form, paymentMethod: e.target.value })} /> Cash on Delivery</label>
-              <label className="p-3 bg-slate-50 border rounded-2xl flex items-center gap-2"><input type="radio" name="pay" value="mobile" checked={form.paymentMethod === 'mobile'} onChange={e => setForm({ ...form, paymentMethod: e.target.value })} /> bKash / Nagad</label>
+              {paymentMethods.map(method => (
+                <label key={method._id} className="p-3 bg-slate-50 border rounded-2xl flex items-center gap-2">
+                  <input type="radio" name="pay" value={method._id} checked={form.paymentMethod === String(method._id)} onChange={e => setForm({ ...form, paymentMethod: e.target.value })} />
+                  {method.name}
+                </label>
+              ))}
             </div>
           </div>
+          {selectedPaymentMethod && (
+            <div className="space-y-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm">
+              <p className="font-bold text-slate-900">{selectedPaymentMethod.name} {selectedPaymentMethod.provider === 'bank' ? 'bank transfer' : 'payment'}: {selectedPaymentMethod.accountNumber}</p>
+              {selectedPaymentMethod.accountName && <p className="text-slate-700">Account name: {selectedPaymentMethod.accountName}</p>}
+              {selectedPaymentMethod.accountType && <p className="text-slate-700">Account type: {selectedPaymentMethod.accountType}</p>}
+              <p className="text-xs text-slate-700">এই অ্যাকাউন্টে টাকা পাঠিয়ে Transaction ID দিন। পেমেন্ট যাচাই না হওয়া পর্যন্ত অর্ডার pending থাকবে।</p>
+              {selectedPaymentMethod.provider !== 'bank' && (
+                <input type="tel" placeholder="যে নম্বর থেকে টাকা পাঠিয়েছেন" value={form.senderNumber} onChange={e => setForm({ ...form, senderNumber: e.target.value })} className="w-full rounded-lg border border-rose-200 bg-white p-3 text-xs" required />
+              )}
+              <input type="text" placeholder="Transaction ID / Reference" value={form.transactionId} onChange={e => setForm({ ...form, transactionId: e.target.value })} className="w-full rounded-lg border border-rose-200 bg-white p-3 text-xs" required />
+            </div>
+          )}
           {error && <p className="text-xs font-bold text-rose-600 bg-rose-50 rounded-xl p-3">{error}</p>}
           <button type="submit" className="w-full py-4 bg-purple-700 text-white font-black text-xs rounded-2xl shadow-lg">Confirm Order</button>
         </form>

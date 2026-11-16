@@ -34,6 +34,7 @@ const AdminContent = () => {
       products: '💄 প্রোডাক্টস',
       users: '👥 ইউজার লিস্ট',
       settings: '⚙️ সেটিংস',
+      paymentMethods: '💳 পেমেন্ট নম্বর',
       contactMessages: '✉️ মেসেজ সমূহ',
       footer: 'অ্যাডমিন প্যানেল',
       logout: 'লগআউট',
@@ -52,6 +53,7 @@ const AdminContent = () => {
       products: '💄 Products',
       users: '👥 Users List',
       settings: '⚙️ Settings',
+      paymentMethods: '💳 Payment Accounts',
       contactMessages: '✉️ Contact Messages',
       content: '🖼️ Gallery & Videos',
       footer: 'Admin Panel',
@@ -72,6 +74,7 @@ const AdminContent = () => {
     { name: t[lang].products, path: '/admin/products' },
     { name: t[lang].users, path: '/admin/users' },
     { name: t[lang].settings, path: '/admin/settings' },
+    { name: t[lang].paymentMethods, path: '/admin/payment-methods' },
     { name: t[lang].contactMessages, path: '/admin/contact-messages' },
     { name: t[lang].content, path: '/admin/content' },
   ];

@@ -22,6 +22,7 @@ import Products from './components/admin/Products'; // Space সরিয়ে ঠ
 import Offers from './components/admin/Offers'; 
 import ContactMessages from './components/admin/ContactMessages';
 import ContentManager from './components/admin/ContentManager';
+import PaymentMethods from './components/admin/PaymentMethods';
 
 function App() {
   return (
@@ -43,6 +44,7 @@ function App() {
             <Route path="offers" element={<Offers />} />
             <Route path="blogs" element={<Blogs />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="payment-methods" element={<PaymentMethods />} />
             <Route path="contact-messages" element={<ContactMessages />} />
             <Route path="content" element={<ContentManager />} />
             <Route path="orders" element={<Orders />} />

@@ -13,6 +13,14 @@ const SiteSettingsSchema = new mongoose.Schema({
   currency: { type: String, default: '৳ (BDT)' },
   vatPercent: { type: Number, default: 5 },
   advanceBookingPercent: { type: Number, default: 20 },
+  paymentMethods: [{
+    provider: { type: String, enum: ['bkash', 'nagad', 'rocket', 'bank'], required: true },
+    name: { type: String, trim: true, required: true },
+    accountName: { type: String, trim: true, default: '' },
+    accountNumber: { type: String, trim: true, required: true },
+    accountType: { type: String, trim: true, default: '' },
+    isActive: { type: Boolean, default: true }
+  }],
   facebook: { type: String, default: '' },
   instagram: { type: String, default: '' },
   whatsapp: { type: String, default: '' }

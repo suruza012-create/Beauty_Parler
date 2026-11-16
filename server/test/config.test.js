@@ -50,3 +50,16 @@ test('all core Mongoose models can be required without runtime errors', () => {
 test('notification API route can be loaded', () => {
   assert.doesNotThrow(() => require('../routes/notificationRoutes'));
 });
+
+test('site settings validate payment account methods', async () => {
+  const SiteSettings = require('../models/SiteSettings');
+  const validSettings = new SiteSettings({
+    paymentMethods: [{ provider: 'bank', name: 'Example Bank', accountNumber: '0123456789' }]
+  });
+  const invalidSettings = new SiteSettings({
+    paymentMethods: [{ provider: 'unknown', name: 'Example', accountNumber: '' }]
+  });
+
+  await assert.doesNotReject(validSettings.validate());
+  await assert.rejects(invalidSettings.validate());
+});
