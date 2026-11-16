@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapPin, Phone, Mail } from 'lucide-react';
-import { apiPost } from '../utils/api';
+import { apiGet, apiPost } from '../utils/api';
 
 const Contact = () => {
+  const [settings, setSettings] = useState(null);
   const [form, setForm] = useState({ name: '', email: '', message: '' });
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [settingsError, setSettingsError] = useState('');
+
+  useEffect(() => {
+    apiGet('/content/settings')
+      .then(({ settings: data }) => setSettings(data))
+      .catch(requestError => setSettingsError(requestError.message));
+  }, []);
 
   const submitMessage = async (event) => {
     event.preventDefault();
@@ -24,9 +32,10 @@ const Contact = () => {
         <h1 className="text-3xl font-black text-center text-slate-900">Contact Us</h1>
         <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border border-purple-100 grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-4 text-xs font-bold text-slate-700">
-            <p className="flex items-center gap-2"><MapPin className="w-4 h-4 text-pink-600" /> Dhanmondi, Dhaka, Bangladesh</p>
-            <p className="flex items-center gap-2"><Phone className="w-4 h-4 text-pink-600" /> +880 1234 567 890</p>
-            <p className="flex items-center gap-2"><Mail className="w-4 h-4 text-pink-600" /> info@glowandgrace.com</p>
+            {settingsError && <p className="text-rose-600">{settingsError}</p>}
+            <p className="flex items-center gap-2"><MapPin className="w-4 h-4 text-pink-600" /> {settings?.address}</p>
+            <p className="flex items-center gap-2"><Phone className="w-4 h-4 text-pink-600" /> {settings?.phone}</p>
+            <p className="flex items-center gap-2"><Mail className="w-4 h-4 text-pink-600" /> {settings?.contactEmail}</p>
           </div>
           <form onSubmit={submitMessage} className="space-y-3">
             <input required type="text" placeholder="Your Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full p-3 bg-slate-50 border rounded-2xl text-xs font-bold" />

@@ -1,31 +1,35 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Star, Clock, CheckCircle2, Calendar, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { apiGet } from '../utils/api';
 
 const ServiceDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // Single Dummy Service Data
-  const service = {
-    id: id || 1,
-    title: 'Bridal Glow Facial & Spa',
-    category: 'Facial & Skin',
-    price: 2500,
-    oldPrice: 3000,
-    rating: 4.9,
-    reviews: 128,
-    duration: '90 Mins',
-    description: 'আমাদের স্পেশাল ব্রাইডাল গ্লো ফেসিয়ালের মাধ্যমে আপনার ত্বকের মরা কোষ দূর করে প্রাকৃতিক উজ্জ্বলতা ফুটিয়ে তোলা হয়। এতে ব্যবহার করা হয় শতভাগ অরগানিক উপাদান যা যেকোনো ধরনের ত্বকের জন্য নিরাপদ।',
-    features: [
-      'গভীর ত্বক পরিষ্কারকরণ (Deep Cleansing)',
-      'গোল্ড স্ক্রাব এক্সফোলিয়েশন (Gold Scrub)',
-      'ডিটক্স কাদা মাস্ক (Detox Mud Mask)',
-      'রিলাক্সিং ফেসিয়াল মাসাজ (Face Massage)',
-      'সানস্ক্রিন ও হাইড্রেশন সিরাম (Moisturizer & Serum)'
-    ],
-    image: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=800&q=80'
-  };
+  const [service, setService] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    apiGet(`/service/${id}`)
+      .then(({ service: row }) => setService({
+        id: row._id,
+        title: row.name,
+        category: row.category === 'Hair' ? 'Hair Care' : row.category === 'Skin' ? 'Facial & Skin' : row.category,
+        price: row.price,
+        oldPrice: row.discount ? Math.round(row.price / (1 - row.discount / 100)) : row.price,
+        rating: row.averageRating || 0,
+        reviews: row.totalReviews || 0,
+        duration: row.duration,
+        description: row.description,
+        features: row.features || [],
+        image: row.image
+      }))
+      .catch(requestError => setError(requestError.message));
+  }, [id]);
+
+  if (error) return <p className="p-10 text-center text-rose-600 font-bold">{error}</p>;
+  if (!service) return <p className="p-10 text-center text-slate-500 font-bold">Loading service...</p>;
 
   return (
     <div className="min-h-screen bg-slate-50 py-10">

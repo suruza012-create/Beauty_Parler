@@ -12,74 +12,7 @@ const Staff = () => {
   const lang = Array.isArray(context) ? context[0] : (context?.lang || 'bn');
 
   // Initial Staff Members Data
-  const [staffList, setStaffList] = useState([
-    {
-      id: 1,
-      name: 'Sharmin Sultana',
-      nameBn: 'শারমিন সুলতানা',
-      role: 'Senior Makeup Artist',
-      roleBn: 'সিনিয়র মেকআপ আর্টিস্ট',
-      phone: '01711111111',
-      email: 'sharmin@beauty.com',
-      shift: 'Morning',
-      shiftBn: 'সকাল',
-      status: 'Available', // Available, Working, On Leave
-      rating: 4.9,
-      reviewsCount: 64,
-      monthlyServicesCount: 42,
-      totalEarned: 85000,
-      commissionRate: 15, // 15%
-      salaryType: 'Base + Commission',
-      joiningDate: '2024-03-15',
-      emergencyContact: '01700000000',
-      expertise: ['Bridal Makeup', 'Party Makeup', 'HD Makeup'],
-      image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200'
-    },
-    {
-      id: 2,
-      name: 'Rifat Araju',
-      nameBn: 'রিফাত আরজু',
-      role: 'Hair Stylist & Specialist',
-      roleBn: 'হেয়ার স্টাইলিস্ট',
-      phone: '01822222222',
-      email: 'rifat@beauty.com',
-      shift: 'Full Day',
-      shiftBn: 'ফুল ডে',
-      status: 'Working',
-      rating: 4.8,
-      reviewsCount: 48,
-      monthlyServicesCount: 38,
-      totalEarned: 62000,
-      commissionRate: 12,
-      salaryType: 'Base + Commission',
-      joiningDate: '2024-06-01',
-      emergencyContact: '01800000000',
-      expertise: ['Hair Spa', 'Hair Cut', 'Keratin Treatment'],
-      image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=200'
-    },
-    {
-      id: 3,
-      name: 'Meherunnesa',
-      nameBn: 'মেহেরুন্নেসা',
-      role: 'Skin & Facial Specialist',
-      roleBn: 'স্কিন স্পেশালিস্ট',
-      phone: '01933333333',
-      email: 'meher@beauty.com',
-      shift: 'Evening',
-      shiftBn: 'বিকাল',
-      status: 'On Leave',
-      rating: 4.7,
-      reviewsCount: 35,
-      monthlyServicesCount: 29,
-      totalEarned: 48000,
-      commissionRate: 10,
-      salaryType: 'Fixed Salary',
-      joiningDate: '2025-01-10',
-      emergencyContact: '01900000000',
-      expertise: ['Gold Facial', 'Hydra Facial', 'Skin Care'],
-      image: 'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?auto=format&fit=crop&q=80&w=200'
-    }
-  ]);
+  const [staffList, setStaffList] = useState([]);
 
   // States
   const [searchTerm, setSearchTerm] = useState('');
@@ -206,31 +139,38 @@ const Staff = () => {
 
   const currentT = t[lang] || t.en;
 
+  const loadStaff = async () => {
+    const { data } = await api.get('/staff');
+    setStaffList((data.staff || []).map(staff => ({
+      ...staff,
+      id: staff._id || staff.id,
+      role: staff.designation || staff.role,
+      status: staff.status || (staff.isActive === false ? 'On Leave' : 'Available'),
+      expertise: Array.isArray(staff.expertise) ? staff.expertise : [],
+      rating: Number(staff.rating) || 0,
+      reviewsCount: Number(staff.reviewsCount) || 0,
+      monthlyServicesCount: Number(staff.monthlyServicesCount) || 0,
+      totalEarned: Number(staff.totalEarned) || 0,
+      commissionRate: Number(staff.commissionRate) || 0,
+      joiningDate: staff.joinDate?.slice(0, 10) || ''
+    })));
+  };
+
   useEffect(() => {
-    api.get('/staff').then(({ data }) => {
-      setStaffList((data.staff || []).map(staff => ({
-        ...staff,
-        id: staff._id || staff.id,
-        status: staff.isActive === false ? 'On Leave' : 'Available',
-        expertise: Array.isArray(staff.expertise) ? staff.expertise : [],
-        rating: Number(staff.rating) || 0,
-        reviewsCount: Number(staff.reviewsCount) || 0,
-        monthlyServicesCount: Number(staff.monthlyServicesCount) || 0,
-        totalEarned: Number(staff.totalEarned) || 0,
-        commissionRate: Number(staff.commissionRate) || 0
-      })));
-    }).catch(() => {});
+    loadStaff().catch(error => alert(error.response?.data?.message || error.message || 'Unable to load staff'));
   }, []);
 
   // Handlers
-  const toggleStatus = (id) => {
-    setStaffList(prev => prev.map(s => {
-      if (s.id === id) {
-        const nextStatus = s.status === 'Available' ? 'Working' : s.status === 'Working' ? 'On Leave' : 'Available';
-        return { ...s, status: nextStatus };
-      }
-      return s;
-    }));
+  const toggleStatus = async (id) => {
+    const staff = staffList.find(item => item.id === id);
+    if (!staff) return;
+    try {
+      const nextStatus = staff.status === 'Available' ? 'Working' : staff.status === 'Working' ? 'On Leave' : 'Available';
+      await api.put(`/staff/${id}`, { status: nextStatus, isActive: nextStatus !== 'On Leave' });
+      await loadStaff();
+    } catch (error) {
+      alert(error.response?.data?.message || error.message || 'Unable to update staff status');
+    }
   };
 
   const handleExportCSV = () => {
@@ -244,11 +184,14 @@ const Staff = () => {
     a.click();
   };
 
-  const handleDelete = () => {
-    api.delete(`/staff/${deleteId}`).then(() => {
+  const handleDelete = async () => {
+    try {
+      await api.delete(`/staff/${deleteId}`);
       setStaffList(prev => prev.filter(s => s.id !== deleteId));
       setDeleteId(null);
-    }).catch(() => {});
+    } catch (error) {
+      alert(error.response?.data?.message || error.message || 'Unable to delete staff member');
+    }
   };
 
   const copyPhone = async (phone) => {
@@ -300,10 +243,17 @@ const Staff = () => {
       role: ['admin', 'manager', 'beautician', 'receptionist', 'accountant'].includes(formData.role)
         ? formData.role
         : 'beautician',
+      designation: formData.role,
       phone: formData.phone,
       email: normalizedEmail,
       salary: 0,
-      isActive: true,
+      shift: formData.shift,
+      salaryType: formData.salaryType,
+      commissionRate: Number(formData.commissionRate || 0),
+      emergencyContact: formData.emergencyContact,
+      expertise: expArr,
+      status: editStaff?.status || 'Available',
+      isActive: editStaff?.isActive !== false,
       image,
       ...(formData.password ? { password: formData.password } : {})
     };
@@ -311,50 +261,12 @@ const Staff = () => {
     try {
     if (editStaff) {
       await api.put(`/staff/${editStaff.id}`, { ...payload, password: undefined });
-      setStaffList(prev => prev.map(s => s.id === editStaff.id ? {
-        ...s,
-        name: formData.name,
-        nameBn: formData.name,
-        role: formData.role,
-        roleBn: formData.role,
-        phone: formData.phone,
-        email: formData.email,
-        shift: formData.shift,
-        shiftBn: formData.shift === 'Morning' ? 'সকাল' : formData.shift === 'Evening' ? 'বিকাল' : 'ফুল ডে',
-        commissionRate: Number(formData.commissionRate),
-        salaryType: formData.salaryType,
-        emergencyContact: formData.emergencyContact,
-        expertise: expArr,
-        image
-      } : s));
       setEditStaff(null);
     } else {
-      const response = await api.post('/staff', payload);
-      const newStaff = {
-        id: response.data?.staff?.id || response.data?.staff?._id,
-        name: formData.name,
-        nameBn: formData.name,
-        role: formData.role,
-        roleBn: formData.role,
-        phone: formData.phone,
-        email: formData.email || 'staff@beauty.com',
-        shift: formData.shift,
-        shiftBn: formData.shift === 'Morning' ? 'সকাল' : formData.shift === 'Evening' ? 'বিকাল' : 'ফুল ডে',
-        status: 'Available',
-        rating: 5.0,
-        reviewsCount: 1,
-        monthlyServicesCount: 0,
-        totalEarned: 0,
-        commissionRate: Number(formData.commissionRate || 10),
-        salaryType: formData.salaryType,
-        joiningDate: new Date().toISOString().split('T')[0],
-        emergencyContact: formData.emergencyContact || formData.phone,
-        expertise: expArr,
-        image
-      };
-      setStaffList(prev => [newStaff, ...prev]);
+      await api.post('/staff', payload);
       setIsAddModalOpen(false);
     }
+    await loadStaff();
     } catch (error) {
       console.error('Staff save failed:', error);
       alert(error.response?.data?.message || 'Unable to save staff member');

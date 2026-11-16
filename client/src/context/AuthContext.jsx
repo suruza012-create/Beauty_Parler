@@ -6,10 +6,18 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
 	const [user, setUser] = useState(() => {
 		const saved = localStorage.getItem('clientUser');
-		return saved ? JSON.parse(saved) : null;
+		try {
+			return saved ? JSON.parse(saved) : null;
+		} catch {
+			localStorage.removeItem('clientUser');
+			return null;
+		}
 	});
 
 	const saveSession = (result) => {
+		if (!result?.token || !result?.user) {
+			throw new Error('Authentication failed. Please try again.');
+		}
 		localStorage.setItem('clientToken', result.token);
 		localStorage.setItem('clientUser', JSON.stringify(result.user));
 		setUser(result.user);

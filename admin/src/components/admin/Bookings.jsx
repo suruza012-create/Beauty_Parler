@@ -13,41 +13,13 @@ const Bookings = () => {
 
   // Available Services Catalog for Auto Price Match
   const [serviceCatalog, setServiceCatalog] = useState([]);
+  const [bookingLoadError, setBookingLoadError] = useState('');
 
   // Beautician Roster List
-  const staffList = ['Sharmin Sultana', 'Rifat Arju', 'Meherunnesa', 'Unassigned'];
+  const [staffList, setStaffList] = useState(['Unassigned']);
 
   // Enhanced Bookings State
-  const [bookings, setBookings] = useState([
-    { 
-      id: 1, 
-      clientName: 'Sabrina Khan', 
-      phone: '01700000000', 
-      serviceId: 's1', 
-      serviceName: 'Bridal Makeup', 
-      price: 12000, 
-      time: '02:00 PM', 
-      date: '2026-07-24', 
-      staff: 'Sharmin Sultana',
-      paymentStatus: 'PAID',
-      status: 'CONFIRMED',
-      notes: 'Sensitive skin, requested organic products.'
-    },
-    { 
-      id: 2, 
-      clientName: 'Sumi Akter', 
-      phone: '01800000000', 
-      serviceId: 's3', 
-      serviceName: 'Hair Spa & Cut', 
-      price: 1800, 
-      time: '12:00 PM', 
-      date: '2026-07-25', 
-      staff: 'Rifat Arju',
-      paymentStatus: 'UNPAID',
-      status: 'PENDING',
-      notes: ''
-    },
-  ]);
+  const [bookings, setBookings] = useState([]);
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -75,7 +47,7 @@ const Bookings = () => {
     date: '',
     staff: 'Unassigned',
     paymentStatus: 'UNPAID',
-    status: 'CONFIRMED',
+    status: 'PENDING',
     notes: ''
   });
 
@@ -152,6 +124,28 @@ const Bookings = () => {
 
   const currentT = t[lang] || t.bn;
 
+  const loadBookings = async () => {
+    const { data } = await api.get('/booking');
+    const rows = data.bookings || [];
+    setBookings(rows.map(booking => {
+      const noteParts = (booking.note || '').split('|').map(value => value.trim());
+      return {
+        ...booking,
+        id: booking._id || booking.id,
+        serviceId: booking.serviceId?._id || booking.serviceId,
+        clientName: booking.customerName || booking.userId?.name || noteParts[0] || 'Guest',
+        phone: booking.phone || booking.userId?.phone || noteParts[1] || '',
+        serviceName: booking.serviceId?.name || booking.serviceName || 'Service',
+        price: booking.serviceId?.price ?? booking.price ?? 0,
+        date: booking.bookingDate || booking.date,
+        time: booking.bookingTime || booking.time,
+        status: String(booking.status || 'pending').toUpperCase(),
+        paymentStatus: booking.paymentStatus || 'UNPAID',
+        notes: noteParts.slice(2).join(' | ')
+      };
+    }));
+  };
+
   useEffect(() => {
     api.get('/service').then(({ data }) => {
       setServiceCatalog((data.services || []).map(service => ({
@@ -161,20 +155,11 @@ const Bookings = () => {
       })));
       if (!data.services?.length) setServiceLoadError(lang === 'bn' ? 'আগে Services page থেকে অন্তত একটি service যোগ করুন।' : 'Add at least one service from the Services page first.');
     }).catch((error) => setServiceLoadError(error.response?.data?.message || 'Unable to load services'));
+    api.get('/staff').then(({ data }) => {
+      setStaffList(['Unassigned', ...(data.staff || []).filter(staff => staff.isActive !== false).map(staff => staff.name)]);
+    }).catch(error => setServiceLoadError(error.response?.data?.message || error.message));
 
-    api.get('/booking').then(({ data }) => {
-      const rows = data.bookings || data.data || [];
-      setBookings(rows.map(booking => ({
-        ...booking,
-        id: booking._id || booking.id,
-        clientName: booking.customerName || booking.customer?.name || booking.user?.name || 'Guest',
-        serviceName: booking.serviceName || booking.service?.name || 'Service',
-        date: booking.bookingDate || booking.date,
-        time: booking.bookingTime || booking.time,
-        status: String(booking.status || 'PENDING').toUpperCase(),
-        paymentStatus: booking.paymentStatus || 'UNPAID'
-      })));
-    }).catch(() => {});
+    loadBookings().catch(error => setBookingLoadError(error.response?.data?.message || error.message));
   }, []);
 
   // Calculate Quick Stats
@@ -212,7 +197,7 @@ const Bookings = () => {
       date: new Date().toISOString().split('T')[0], 
       staff: 'Unassigned',
       paymentStatus: 'UNPAID',
-      status: 'CONFIRMED',
+      status: 'PENDING',
       notes: ''
     });
     setIsModalOpen(true);
@@ -238,25 +223,25 @@ const Bookings = () => {
 
     const payload = {
       customerName: formData.clientName,
+      phone: formData.phone,
       serviceId: formData.serviceId,
       serviceName: formData.serviceName,
       price: Number(formData.price),
       staff: formData.staff,
       bookingDate: formData.date,
       bookingTime: formData.time,
-      status: formData.status,
+      status: formData.status.toLowerCase(),
       note: formData.notes
     };
     try {
     setSaving(true);
     if (currentBooking) {
       await api.put(`/booking/${currentBooking.id}`, payload);
-      setBookings(prev => Array.isArray(prev) ? prev.map(b => b.id === currentBooking.id ? { ...formData, id: b.id } : b) : []);
+      await loadBookings();
       showToast(lang === 'bn' ? 'বুকিং সফলভাবে আপডেট হয়েছে' : 'Booking updated successfully');
     } else {
-      const response = await api.post('/booking', payload);
-      const newEntry = { ...formData, id: Date.now() };
-      setBookings(prev => Array.isArray(prev) ? [{ ...(response.data?.booking || newEntry), ...formData, id: response.data?.booking?._id || newEntry.id }, ...prev] : [newEntry]);
+      await api.post('/booking', payload);
+      await loadBookings();
       showToast(lang === 'bn' ? 'নতুন বুকিং যুক্ত হয়েছে' : 'New booking added');
     }
     setIsModalOpen(false);
@@ -275,7 +260,7 @@ const Bookings = () => {
   const confirmDelete = async () => {
     try {
       await api.delete(`/booking/${deleteTargetId}`);
-      setBookings(prev => Array.isArray(prev) ? prev.filter(b => b.id !== deleteTargetId) : []);
+      await loadBookings();
       setIsDeleteModalOpen(false);
       showToast(lang === 'bn' ? 'বুকিং মুছে ফেলা হয়েছে' : 'Booking deleted successfully');
     } catch (error) {
@@ -410,6 +395,7 @@ const Bookings = () => {
 
       {/* Table Container */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        {bookingLoadError && <p className="p-4 text-sm font-bold text-rose-600">{bookingLoadError}</p>}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>

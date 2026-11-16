@@ -9,6 +9,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getAllProducts,
+  getAdminProducts,
   getSingleProduct,
   createProduct,
   updateProduct,
@@ -22,6 +23,7 @@ const { auth, admin } = require('../middleware/auth');
  * @access  Public
  */
 router.get('/', getAllProducts);
+router.get('/manage', auth, admin, getAdminProducts);
 
 /**
  * @route   GET /api/products/:id

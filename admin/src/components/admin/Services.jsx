@@ -10,89 +10,8 @@ const Services = () => {
   const context = useOutletContext();
   const lang = Array.isArray(context) ? context[0] : (context?.lang || 'bn');
 
-  // Initial Services Data
-  const [services, setServices] = useState([
-    {
-      id: 1,
-      name: 'Party Makeup',
-      nameBn: 'পার্টি মেকআপ',
-      category: 'Makeup',
-      categoryBn: 'মেকআপ',
-      duration: '60 min',
-      durationBn: '৬০ মিনিট',
-      price: 2500,
-      originalPrice: 3000,
-      discount: '16% OFF',
-      rating: 4.9,
-      reviewsCount: 38,
-      status: 'Active',
-      assignedStaff: ['Bristy', 'Smriti'],
-      image: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&q=80&w=200',
-      description: 'Full face HD glam makeup including false lashes and premium contouring.',
-      descriptionBn: 'ফলস ল্যাশ এবং প্রিমিয়াম কনট্যুরিং সহ সম্পূর্ণ ফেস এইচডি গ্ল্যাম মেকআপ।',
-      homeService: true,
-    },
-    {
-      id: 2,
-      name: 'Bridal Glow Package',
-      nameBn: 'ব্রাইডাল গ্লো প্যাকেজ',
-      category: 'Bridal',
-      categoryBn: 'ব্রাইডাল',
-      duration: '180 min',
-      durationBn: '১৮০ মিনিট',
-      price: 12000,
-      originalPrice: 15000,
-      discount: '20% OFF',
-      rating: 5.0,
-      reviewsCount: 52,
-      status: 'Active',
-      assignedStaff: ['Smriti'],
-      image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&q=80&w=200',
-      description: 'Complete bridal makeover package with facial, body polish, and HD bridal makeup.',
-      descriptionBn: 'ফেশিয়াল, বডি পলিশ এবং এইচডি ব্রাইডাল মেকআপ সহ সম্পূর্ণ ব্রাইডাল মেকওভার প্যাকেজ।',
-      homeService: true,
-    },
-    {
-      id: 3,
-      name: 'Hair Spa & Cut',
-      nameBn: 'হেয়ার স্পা ও কাট',
-      category: 'Hair Care',
-      categoryBn: 'হেয়ার কেয়ার',
-      duration: '45 min',
-      durationBn: '৪৫ মিনিট',
-      price: 1800,
-      originalPrice: 2000,
-      discount: '10% OFF',
-      rating: 4.7,
-      reviewsCount: 24,
-      status: 'Active',
-      assignedStaff: ['Bristy'],
-      image: 'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&q=80&w=200',
-      description: 'Deep nourishing hair spa treatment followed by stylish haircut & blow dry.',
-      descriptionBn: 'ডিপ নারিশিং হেয়ার স্পা ট্রিটমেন্ট এবং সাথে স্টাইলিশ হেয়ারকাট ও ব্লো ড্রাই।',
-      homeService: false,
-    },
-    {
-      id: 4,
-      name: 'Gold Facial Care',
-      nameBn: 'গোল্ড ফেসিয়াল কেয়ার',
-      category: 'Skin Care',
-      categoryBn: 'স্কিন কেয়ার',
-      duration: '60 min',
-      durationBn: '৬০ মিনিট',
-      price: 3000,
-      originalPrice: 3500,
-      discount: '14% OFF',
-      rating: 4.8,
-      reviewsCount: 19,
-      status: 'Inactive',
-      assignedStaff: ['Nusrat'],
-      image: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&q=80&w=200',
-      description: '24K Gold infused facial glow treatment for anti-aging and deep hydration.',
-      descriptionBn: 'এন্টি-এজিং এবং ডিপ হাইড্রেশনের জন্য ২৪কে গোল্ড ইনফিউজড ফেসিয়াল গ্লো ট্রিটমেন্ট।',
-      homeService: false,
-    }
-  ]);
+  const [services, setServices] = useState([]);
+  const [loadError, setLoadError] = useState('');
 
   // States
   const [searchTerm, setSearchTerm] = useState('');
@@ -210,31 +129,35 @@ const Services = () => {
   const currentT = t[lang] || t.en;
 
   const loadServices = async () => {
-    const response = await api.get('/service');
+    const response = await api.get('/service/manage');
     const rows = response.data?.services || [];
     setServices(rows.map(item => ({
       ...item,
       id: item._id || item.id,
+      category: item.category === 'Hair' ? 'Hair Care' : item.category === 'Skin' ? 'Skin Care' : item.category,
       status: item.isAvailable === false ? 'Inactive' : 'Active',
-      originalPrice: item.originalPrice || item.price,
+      originalPrice: item.discount && item.discount < 100 ? Math.round(item.price / (1 - item.discount / 100)) : item.price,
       rating: item.averageRating || 0,
-      reviewsCount: item.reviewCount || 0,
+      reviewsCount: item.totalReviews || 0,
       assignedStaff: Array.isArray(item.assignedStaff) ? item.assignedStaff : [],
       discount: item.discount ? `${item.discount}% OFF` : ''
     })));
   };
 
   useEffect(() => {
-    loadServices().catch(() => {});
+    loadServices().catch(error => setLoadError(error.response?.data?.message || error.message));
   }, []);
 
   // Toggle Active/Inactive Status
-  const toggleStatus = (id) => {
+  const toggleStatus = async (id) => {
     const service = services.find(item => item.id === id);
     if (!service) return;
-    api.put(`/service/${id}`, { isAvailable: service.status !== 'Active' })
-      .then(loadServices)
-      .catch(() => {});
+    try {
+      await api.put(`/service/${id}`, { isAvailable: service.status !== 'Active' });
+      await loadServices();
+    } catch (error) {
+      setLoadError(error.response?.data?.message || error.message);
+    }
   };
 
   // Export to CSV Functionality
@@ -250,13 +173,14 @@ const Services = () => {
   };
 
   // Delete Service Functionality
-  const handleDelete = () => {
-    api.delete(`/service/${deleteServiceId}`)
-      .then(() => {
-        setServices(prev => prev.filter(s => s.id !== deleteServiceId));
-        setDeleteServiceId(null);
-      })
-      .catch(() => {});
+  const handleDelete = async () => {
+    try {
+      await api.delete(`/service/${deleteServiceId}`);
+      setServices(prev => prev.filter(s => s.id !== deleteServiceId));
+      setDeleteServiceId(null);
+    } catch (error) {
+      setLoadError(error.response?.data?.message || error.message);
+    }
   };
 
   // Open Edit Modal
@@ -282,64 +206,34 @@ const Services = () => {
       Makeup: 'Makeup',
       Bridal: 'Bridal'
     };
+    const price = Number(formData.price);
+    const originalPrice = Number(formData.originalPrice || formData.price);
     const payload = {
         name: formData.name,
         category: categoryMap[formData.category] || 'Other',
         duration: formData.duration,
-        price: Number(formData.price),
+        price,
+        discount: originalPrice > price ? Math.min(99, Math.round((1 - price / originalPrice) * 100)) : 0,
         description: formData.description,
         image: formData.image?.trim() || 'default-service.jpg',
         isAvailable: true
       };
-    if (imageFile) {
-      const uploadData = new FormData();
-      uploadData.append('file', imageFile);
-      const uploadResponse = await api.post('/upload', uploadData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      payload.image = uploadResponse.data.url;
-    }
     try {
+      if (imageFile) {
+        const uploadData = new FormData();
+        uploadData.append('file', imageFile);
+        const uploadResponse = await api.post('/upload', uploadData);
+        payload.image = uploadResponse.data.url;
+      }
       if (editService) {
         await api.put(`/service/${editService.id}`, payload);
-        setServices(prev => prev.map(s => s.id === editService.id ? {
-        ...s,
-        name: formData.name,
-        nameBn: formData.name,
-        category: formData.category,
-        categoryBn: formData.category,
-        duration: formData.duration,
-        durationBn: formData.duration,
-        price: Number(formData.price),
-        originalPrice: Number(formData.originalPrice),
-        description: formData.description,
-        descriptionBn: formData.description,
-        image: formData.image
-        } : s));
         setEditService(null);
       } else {
-        const response = await api.post('/service', payload);
-        const newService = {
-        id: Date.now(),
-        name: formData.name,
-        nameBn: formData.name,
-        category: formData.category,
-        categoryBn: formData.category,
-        duration: formData.duration,
-        durationBn: formData.duration,
-        price: Number(formData.price),
-        originalPrice: Number(formData.originalPrice || formData.price),
-        discount: 'New',
-        rating: 5.0,
-        reviewsCount: 1,
-        status: 'Active',
-        assignedStaff: ['Staff'],
-        image: formData.image || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&q=80&w=200',
-        description: formData.description,
-        descriptionBn: formData.description,
-        homeService: false
-      };
-        setServices(prev => [response.data?.service || newService, ...prev]);
+        await api.post('/service', payload);
         setIsAddModalOpen(false);
       }
+      await loadServices();
+      setImageFile(null);
     } catch (error) {
       const message = error.response?.data?.message || (lang === 'bn' ? 'সার্ভিস সংরক্ষণ ব্যর্থ হয়েছে' : 'Service save failed');
       console.error('Service save failed:', error);
@@ -357,6 +251,7 @@ const Services = () => {
 
   return (
     <div className="p-6 bg-slate-100/80 min-h-screen text-slate-800 space-y-6 font-sans">
+    {loadError && <p className="text-sm font-bold text-rose-600">{loadError}</p>}
       
       {/* Top Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 text-white p-6 rounded-2xl shadow-xl border border-slate-800">

@@ -14,7 +14,7 @@ const ProductDetails = () => {
     apiGet(`/product/${id}`).then(({ product: row }) => setProduct({
       ...row,
       id: row._id,
-      regPrice: row.price,
+      regPrice: row.discount ? Math.round(row.price / (1 - row.discount / 100)) : row.price,
       rating: row.averageRating || 0
     })).catch(requestError => setError(requestError.message));
   }, [id]);

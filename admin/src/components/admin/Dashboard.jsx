@@ -11,25 +11,69 @@ const Dashboard = () => {
   const lang = Array.isArray(context) ? context[0] : (context?.lang || 'bn');
   const navigate = useNavigate();
   const [metrics, setMetrics] = useState({ bookings: 0, users: 0, revenue: 0, services: 0, staff: 0 });
+  const [safePopular, setSafePopular] = useState([]);
+  const [safeBookings, setSafeBookings] = useState([]);
+  const [safeUpcoming, setSafeUpcoming] = useState([]);
+  const [safeReviews, setSafeReviews] = useState([]);
+  const [safeStock, setSafeStock] = useState([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     Promise.all([
       api.get('/booking'),
       api.get('/auth/users'),
       api.get('/service'),
-      api.get('/staff')
-      , api.get('/report/dashboard')
-    ]).then(([bookingRes, userRes, serviceRes, staffRes, reportRes]) => {
+      api.get('/staff'),
+      api.get('/report/dashboard'),
+      api.get('/review'),
+      api.get('/product')
+    ]).then(([bookingRes, userRes, serviceRes, staffRes, reportRes, reviewRes, productRes]) => {
       const bookings = bookingRes.data?.bookings || [];
-      const orders = bookings.filter(booking => booking.status === 'Confirmed');
+      const services = serviceRes.data?.services || [];
+      const today = new Date().toISOString().slice(0, 10);
+      const recent = [...bookings].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+      const upcoming = bookings
+        .filter(booking => booking.bookingDate >= today && !['cancelled', 'completed'].includes(booking.status))
+        .sort((a, b) => `${a.bookingDate} ${a.bookingTime}`.localeCompare(`${b.bookingDate} ${b.bookingTime}`))
+        .slice(0, 5);
+      const counts = bookings.reduce((result, booking) => {
+        const serviceName = booking.serviceId?.name || 'Service';
+        result[serviceName] = (result[serviceName] || 0) + 1;
+        return result;
+      }, {});
+      setSafePopular(Object.entries(counts)
+        .map(([name, count]) => ({ name, bookings: `${count} Bookings` }))
+        .sort((a, b) => Number.parseInt(b.bookings, 10) - Number.parseInt(a.bookings, 10))
+        .slice(0, 5));
+      setSafeBookings(recent.map(booking => ({
+        client: booking.customerName || booking.userId?.name || 'Guest',
+        service: booking.serviceId?.name || 'Service',
+        time: booking.bookingTime || '',
+        status: String(booking.status || 'pending').toUpperCase()
+      })));
+      setSafeUpcoming(upcoming.map(booking => ({
+        name: booking.customerName || booking.userId?.name || 'Guest',
+        service: booking.serviceId?.name || 'Service',
+        time: `${booking.bookingDate} ${booking.bookingTime}`,
+        status: String(booking.status || 'pending').replace(/\b\w/g, character => character.toUpperCase())
+      })));
+      setSafeReviews((reviewRes.data?.reviews || []).slice(0, 5).map(review => ({
+        name: review.userId?.name || 'Client',
+        rating: review.rating,
+        date: review.createdAt?.slice(0, 10) || '',
+        comment: review.comment
+      })));
+      setSafeStock((productRes.data?.products || [])
+        .filter(product => product.stock <= 5)
+        .map(product => ({ name: product.name, stock: product.stock })));
       setMetrics({
-        bookings: bookings.length,
+        bookings: bookings.filter(booking => booking.bookingDate === today).length,
         users: userRes.data?.count || userRes.data?.users?.length || 0,
-        revenue: reportRes.data?.stats?.totalRevenue || orders.reduce((total, booking) => total + (Number(booking.price) || 0), 0),
-        services: serviceRes.data?.count || serviceRes.data?.services?.length || 0,
+        revenue: reportRes.data?.stats?.totalRevenue || 0,
+        services: services.length,
         staff: staffRes.data?.count || staffRes.data?.staff?.length || 0
       });
-    }).catch(() => {});
+    }).catch(requestError => setError(requestError.response?.data?.message || requestError.message));
   }, []);
 
   // Translations Dictionary
@@ -90,48 +134,9 @@ const Dashboard = () => {
 
   const currentT = t[lang] || t.bn;
 
-  // Mock Overview Data
-  const popularServicesList = [
-    { name: 'Facial Treatment', bookings: '120 Bookings' },
-    { name: 'Hair Cut & Styling', bookings: '98 Bookings' },
-    { name: 'Bridal Makeup', bookings: '75 Bookings' },
-    { name: 'Hair Spa', bookings: '60 Bookings' },
-    { name: 'Manicure & Pedicure', bookings: '45 Bookings' },
-  ];
-
-  const recentBookingsList = [
-    { client: 'Riya Islam', service: 'Hair Cut & Styling', time: '10:30 AM', status: 'CONFIRMED' },
-    { client: 'Nusrat Jahan', service: 'Bridal Makeup', time: '12:00 PM', status: 'CONFIRMED' },
-    { client: 'Tahmina Akter', service: 'Skin Treatment', time: '02:00 PM', status: 'PENDING' },
-    { client: 'Meher Afroz', service: 'Hair Spa', time: '03:30 PM', status: 'CONFIRMED' },
-  ];
-
-  const upcomingAppointmentsList = [
-    { name: 'Riya Islam', service: 'Hair Cut & Styling', time: '10:30 AM', status: 'Confirmed' },
-    { name: 'Nusrat Jahan', service: 'Bridal Makeup', time: '12:00 PM', status: 'Confirmed' },
-    { name: 'Tahmina Akter', service: 'Skin Treatment', time: '02:00 PM', status: 'Pending' },
-    { name: 'Meher Afroz', service: 'Hair Spa', time: '03:30 PM', status: 'Confirmed' },
-  ];
-
-  const recentReviewsList = [
-    { name: 'Riya Islam', rating: 5.0, date: '18 May 2026', comment: 'Excellent service! Very professional staff. Loved their work.' },
-    { name: 'Nusrat Jahan', rating: 4.8, date: '17 May 2026', comment: 'Great atmosphere and polite behavior. Highly recommended!' },
-  ];
-
-  const lowStockList = [
-    { name: 'Hair Serum', stock: 2, total: 20 },
-    { name: 'Face Mask', stock: 1, total: 15 },
-  ];
-
-  // Safety Checks
-  const safePopular = Array.isArray(popularServicesList) ? popularServicesList : [];
-  const safeBookings = Array.isArray(recentBookingsList) ? recentBookingsList : [];
-  const safeUpcoming = Array.isArray(upcomingAppointmentsList) ? upcomingAppointmentsList : [];
-  const safeReviews = Array.isArray(recentReviewsList) ? recentReviewsList : [];
-  const safeStock = Array.isArray(lowStockList) ? lowStockList : [];
-
   return (
     <div className="p-6 bg-slate-100/70 min-h-screen text-slate-800 space-y-6 font-sans">
+      {error && <p className="text-sm font-bold text-rose-600">{error}</p>}
       
       {/* Top Welcome Banner with Gradient */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 text-white p-6 rounded-2xl shadow-lg border border-slate-800">

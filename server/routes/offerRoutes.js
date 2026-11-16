@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getOffers,
+  getAdminOffers,
   getActiveOffers,
   createOffer,
   updateOffer,
@@ -10,6 +11,7 @@ const {
 const { auth, admin } = require('../middleware/auth');
 
 router.get('/', getOffers);
+router.get('/manage', auth, admin, getAdminOffers);
 router.get('/active', getActiveOffers);
 router.post('/', auth, admin, createOffer);
 router.put('/:id', auth, admin, updateOffer);

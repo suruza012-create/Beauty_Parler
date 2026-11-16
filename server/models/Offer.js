@@ -18,6 +18,32 @@ const OfferSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  originalPrice: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
+  offerPrice: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
+  category: {
+    type: String,
+    default: 'General'
+  },
+  targetAudience: {
+    type: String,
+    default: 'All Clients'
+  },
+  servicesIncluded: [{
+    type: String,
+    trim: true
+  }],
+  isFeatured: {
+    type: Boolean,
+    default: false
+  },
   services: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Service'

@@ -10,16 +10,25 @@ export const apiRequest = async (path, options = {}) => {
     ...(options.headers || {})
   };
   const token = localStorage.getItem('clientToken');
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
-  const payload = await response.json();
-
-  if (!response.ok) {
-    throw new Error(payload.message || 'Unable to load data');
+  if (token && !headers.Authorization) {
+    headers.Authorization = `Bearer ${token}`;
   }
 
-  return payload;
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+
+  const contentType = response.headers.get('content-type') || '';
+  const payload = contentType.includes('application/json')
+    ? await response.json()
+    : await response.text();
+
+  if (!response.ok) {
+    const errorMessage = typeof payload === 'object' && payload
+      ? payload.message || 'Unable to load data'
+      : payload || 'Unable to load data';
+    throw new Error(errorMessage);
+  }
+
+  return payload || {};
 };
 
 export const apiPost = (path, body) => apiRequest(path, {

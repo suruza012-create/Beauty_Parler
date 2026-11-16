@@ -16,76 +16,35 @@ const Orders = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     api.get('/order').then(({ data }) => {
       setOrders((data.orders || []).map(order => ({
         ...order,
-        id: order._id || order.orderNumber || order.id,
-        customerName: order.user?.name || order.customerName || 'Guest',
+        id: order._id || order.id,
+        customerName: order.userId?.name || order.customerName || 'Guest',
+        phone: order.phone || '',
+        address: typeof order.deliveryAddress === 'string'
+          ? order.deliveryAddress
+          : [order.deliveryAddress?.street, order.deliveryAddress?.city, order.deliveryAddress?.postalCode].filter(Boolean).join(', '),
         grandTotal: order.totalAmount || order.grandTotal || 0,
-        deliveryStatus: order.deliveryStatus || order.status || 'Pending',
-        paymentStatus: order.paymentStatus || 'Unpaid',
-        items: order.items || []
+        deliveryStatus: (order.orderStatus || order.deliveryStatus || order.status || 'pending') === 'processing'
+          ? 'Pending'
+          : String(order.orderStatus || order.deliveryStatus || order.status || 'pending')
+            .replace(/\b\w/g, character => character.toUpperCase()),
+        paymentStatus: order.paymentStatus === 'paid' ? 'Paid'
+          : order.paymentStatus === 'refunded' ? 'Refunded' : 'Unpaid',
+        items: (order.items || []).map(item => ({ ...item, qty: item.quantity || item.qty || 0 })),
+        paymentMethod: order.paymentMethod || 'cash',
+        date: order.createdAt?.slice(0, 10) || '',
+        notes: order.note || '',
+        courier: order.courier || '',
+        trackingId: order.trackingId || ''
       })));
-    }).catch(() => {});
+    }).catch(requestError => setError(requestError.response?.data?.message || requestError.message));
   }, []);
-
-  // Dummy Initial Orders Data
-  const [orders, setOrders] = useState([
-    {
-      id: '#85E51B',
-      customerName: 'Sultana Razia',
-      phone: '01712345678',
-      address: 'House 45, Road 10, Dhanmondi, Dhaka',
-      items: [
-        { name: 'Matte Lipstick (Ruby Red)', price: 450, qty: 2 },
-        { name: 'Skin Brightening Serum', price: 1050, qty: 1 }
-      ],
-      grandTotal: 1950,
-      deliveryStatus: 'Pending',
-      paymentStatus: 'Unpaid',
-      paymentMethod: 'Cash on Delivery',
-      courier: 'Steadfast',
-      trackingId: '',
-      date: '2026-07-22',
-      notes: 'Please call before delivery.'
-    },
-    {
-      id: '#1B644C',
-      customerName: 'Anika Rahman',
-      phone: '01898765432',
-      address: 'GEC Circle, Nasirabad, Chattogram',
-      items: [
-        { name: 'Hair Spa Shampoo 500ml', price: 700, qty: 1 }
-      ],
-      grandTotal: 700,
-      deliveryStatus: 'Shipped',
-      paymentStatus: 'Paid',
-      paymentMethod: 'bKash (Txn: 9A8B7C6D)',
-      courier: 'Pathao',
-      trackingId: 'PTH-982103',
-      date: '2026-07-21',
-      notes: ''
-    },
-    {
-      id: '#1B644E',
-      customerName: 'Farhana Nusrat',
-      phone: '01911223344',
-      address: 'Zindabazar, Sylhet',
-      items: [
-        { name: 'Bridal Glow Facial Kit', price: 2500, qty: 1 }
-      ],
-      grandTotal: 2500,
-      deliveryStatus: 'Delivered',
-      paymentStatus: 'Paid',
-      paymentMethod: 'Nagad',
-      courier: 'Steadfast',
-      trackingId: 'ST-554109',
-      date: '2026-07-20',
-      notes: 'Fragile package.'
-    }
-  ]);
 
   // Analytics Calculations
   const totalOrdersCount = orders.length;
@@ -94,35 +53,50 @@ const Orders = () => {
   const totalRevenue = orders.reduce((sum, o) => sum + (o.paymentStatus === 'Paid' ? o.grandTotal : 0), 0);
 
   // Status Change Handler
-  const handleStatusChange = (id, field, value) => {
+  const handleStatusChange = async (id, field, value) => {
     const endpoint = field === 'paymentStatus' ? 'payment' : 'status';
     const payload = field === 'paymentStatus'
-      ? { paymentStatus: value.toLowerCase() }
+      ? { paymentStatus: value === 'Unpaid' ? 'pending' : value.toLowerCase() }
       : { orderStatus: value.toLowerCase() };
-    api.put(`/order/${id}/${endpoint}`, payload).catch(() => {});
-    setOrders(orders.map(order => 
-      order.id === id ? { ...order, [field]: value } : order
-    ));
+    try {
+      await api.put(`/order/${id}/${endpoint}`, payload);
+      setOrders(previous => previous.map(order => order.id === id ? { ...order, [field]: value } : order));
+      setError('');
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || requestError.message);
+    }
   };
 
   // Courier Tracking Change Handler
   const handleTrackingChange = (id, trackingId) => {
-    setOrders(orders.map(order => 
-      order.id === id ? { ...order, trackingId } : order
-    ));
+    setOrders(previous => previous.map(order => order.id === id ? { ...order, trackingId } : order));
+  };
+
+  const handleTrackingSave = async (order, trackingId = order.trackingId) => {
+    try {
+      await api.put(`/order/${order.id}/status`, { courier: order.courier, trackingId });
+      setError('');
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || requestError.message);
+    }
   };
 
   // Delete Order
-  const handleDeleteOrder = (id) => {
+  const handleDeleteOrder = async (id) => {
     if (window.confirm(lang === 'bn' ? 'আপনি কি নিশ্চিত যে এই অর্ডারটি ডিলিট করতে চান?' : 'Are you sure you want to delete this order?')) {
-      api.delete(`/order/${id}`).then(() => setOrders(orders.filter(o => o.id !== id))).catch(() => {});
-      if (selectedOrder?.id === id) setSelectedOrder(null);
+      try {
+        await api.delete(`/order/${id}`);
+        setOrders(previous => previous.filter(order => order.id !== id));
+        if (selectedOrder?.id === id) setSelectedOrder(null);
+      } catch (requestError) {
+        setError(requestError.response?.data?.message || requestError.message);
+      }
     }
   };
 
   // Filtered Orders
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchesSearch = String(order.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
                           order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           order.phone.includes(searchTerm);
     const matchesStatus = selectedStatus === 'All' || order.deliveryStatus === selectedStatus;
@@ -162,6 +136,7 @@ const Orders = () => {
       </div>
 
       {/* 2. Vibrant Colorful Analytics Summary Cards */}
+      {error && <p className="text-sm font-bold text-rose-600">{error}</p>}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Total Orders - Vibrant Blue */}
@@ -342,6 +317,7 @@ const Orders = () => {
                           placeholder="Tracking ID"
                           value={order.trackingId}
                           onChange={(e) => handleTrackingChange(order.id, e.target.value)}
+                          onBlur={(e) => handleTrackingSave(order, e.target.value)}
                           className="w-24 px-2 py-1 text-[10px] font-bold bg-purple-50/50 border border-purple-200 rounded-xl focus:outline-none focus:border-purple-600"
                         />
                       </div>

@@ -13,7 +13,7 @@ const Product = require('../models/Product');
  */
 exports.getAllProducts = async (req, res) => {
   try {
-    const products = await Product.find();
+    const products = await Product.find({ stock: { $gt: 0 } });
     
     res.json({
       success: true,
@@ -26,6 +26,16 @@ exports.getAllProducts = async (req, res) => {
       success: false,
       message: 'Server Error. Please try again later.'
     });
+  }
+};
+
+exports.getAdminProducts = async (req, res) => {
+  try {
+    const products = await Product.find().sort({ createdAt: -1 });
+    res.json({ success: true, count: products.length, products });
+  } catch (error) {
+    console.error('Get Admin Products Error:', error);
+    res.status(500).json({ success: false, message: 'Server Error. Please try again later.' });
   }
 };
 

@@ -31,6 +31,21 @@ const BookingSchema = new mongoose.Schema({
     ref: 'Service',
     required: [true, 'Please provide service ID']
   },
+  customerName: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Customer name cannot be more than 100 characters']
+  },
+  phone: {
+    type: String,
+    trim: true,
+    maxlength: [30, 'Phone number cannot be more than 30 characters']
+  },
+  staff: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Staff name cannot be more than 100 characters']
+  },
 
   /**
    * বুকিংয়ের তারিখ

@@ -13,7 +13,7 @@ const Cart = () => {
         <div className="bg-white p-6 rounded-3xl shadow-xl border border-purple-100 space-y-4">
           {items.length === 0 && <p className="text-center text-slate-500 font-bold">Your cart is empty.</p>}
           {items.map(item => (
-            <div key={item.id} className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div key={item.productId} className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-4">
                 <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-xl" />
                 <div>

@@ -4,10 +4,16 @@ import { apiGet } from '../utils/api';
 
 const About = () => {
   const [settings, setSettings] = useState(null);
-  useEffect(() => { apiGet('/content/settings').then(({ settings: data }) => setSettings(data)).catch(() => {}); }, []);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    apiGet('/content/settings')
+      .then(({ settings: data }) => setSettings(data))
+      .catch(requestError => setError(requestError.message));
+  }, []);
   return (
     <div className="min-h-screen bg-slate-50 py-12">
       <div className="max-w-5xl mx-auto px-4 space-y-12">
+        {error && <p className="text-center text-rose-600 font-bold">{error}</p>}
         <div className="text-center space-y-3">
           <span className="text-xs font-black text-pink-600 uppercase bg-pink-100 px-3 py-1 rounded-full">
             About Glow&Grace

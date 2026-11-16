@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarDays, Package, UserCircle } from 'lucide-react';
-import { apiGet } from '../utils/api';
+import { Bell, CalendarDays, Check, Package, UserCircle } from 'lucide-react';
+import { apiGet, apiRequest } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
@@ -9,16 +9,49 @@ const Dashboard = () => {
   const [bookings, setBookings] = useState([]);
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState('');
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationError, setNotificationError] = useState('');
 
   useEffect(() => {
     if (!user) return;
+
     Promise.all([apiGet('/booking/my-booking'), apiGet('/order')])
       .then(([bookingData, orderData]) => {
         setBookings(bookingData.bookings || []);
         setOrders(orderData.orders || []);
       })
       .catch(requestError => setError(requestError.message));
+
+    apiGet('/notification')
+      .then(data => {
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
+      })
+      .catch(requestError => setNotificationError(requestError.message));
   }, [user]);
+
+  const markNotificationRead = async (notification) => {
+    try {
+      await apiRequest(`/notification/${notification._id}/read`, { method: 'PATCH' });
+      setNotifications(current => current.map(item => (
+        item._id === notification._id ? { ...item, isRead: true } : item
+      )));
+      if (!notification.isRead) setUnreadCount(count => Math.max(0, count - 1));
+    } catch (requestError) {
+      setNotificationError(requestError.message);
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    try {
+      await apiRequest('/notification/read-all', { method: 'PATCH' });
+      setNotifications(current => current.map(item => ({ ...item, isRead: true })));
+      setUnreadCount(0);
+    } catch (requestError) {
+      setNotificationError(requestError.message);
+    }
+  };
 
   if (!user) {
     return (
@@ -65,6 +98,48 @@ const Dashboard = () => {
             </div>
           ))}
         </div>
+        <section className="bg-white p-6 rounded-3xl shadow-xl border border-purple-100">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <h2 className="font-black text-lg flex items-center gap-2">
+              <Bell className="w-5 h-5 text-purple-600" />
+              Notifications
+              {unreadCount > 0 && <span className="px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 text-xs">{unreadCount}</span>}
+            </h2>
+            {unreadCount > 0 && (
+              <button onClick={markAllNotificationsRead} className="text-xs font-bold text-purple-700 hover:text-purple-900">
+                Mark all as read
+              </button>
+            )}
+          </div>
+          {notificationError && <p className="mb-3 text-sm text-rose-700">{notificationError}</p>}
+          {notifications.length === 0 ? (
+            <p className="text-sm text-slate-500">No notifications yet.</p>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {notifications.map(notification => (
+                <article key={notification._id} className={`flex items-start justify-between gap-4 py-4 ${notification.isRead ? '' : 'bg-purple-50/50'}`}>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-sm text-slate-900">{notification.title}</h3>
+                    <p className="mt-1 text-sm text-slate-600">{notification.message}</p>
+                    <time className="mt-2 block text-xs text-slate-400">
+                      {new Date(notification.createdAt || notification.sentAt).toLocaleString()}
+                    </time>
+                  </div>
+                  {!notification.isRead && (
+                    <button
+                      onClick={() => markNotificationRead(notification)}
+                      title="Mark as read"
+                      aria-label={`Mark ${notification.title} as read`}
+                      className="shrink-0 p-2 text-purple-700 hover:bg-purple-100 rounded-xl"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

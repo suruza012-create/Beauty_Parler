@@ -12,65 +12,8 @@ const Offers = () => {
   const lang = Array.isArray(context) ? context[0] : (context?.lang || 'bn');
 
   // Sample Offers Data
-  const [offers, setOffers] = useState([
-    {
-      id: 1,
-      title: 'Monsoon Glow Combo',
-      titleBn: 'মনসুন গ্লো কম্বো',
-      category: 'Combo',
-      targetAudience: 'All Clients',
-      originalPrice: 4500,
-      offerPrice: 2499,
-      discountPercent: 44,
-      startDate: '2026-07-01',
-      endDate: '2026-08-15',
-      servicesIncluded: ['Hydra Facial', 'Hair Spa', 'Threading'],
-      status: 'Active',
-      isFeatured: true,
-      bookingsCount: 68,
-      bannerUrl: 'https://images.unsplash.com/photo-1560750588-73207b1ef5b8?auto=format&fit=crop&w=600&q=80',
-      description: 'Get total skin hydration and deep hair conditioning package at a flat discount.',
-      descriptionBn: 'শীতল হাইড্রেটিং ফেসিয়াল এবং ডিপ হেয়ার স্পার সেরা কম্বো প্যাকেজ।'
-    },
-    {
-      id: 2,
-      title: 'Bridal Makeover Flash Deal',
-      titleBn: 'ব্রাইডাল মেকওভার ফ্ল্যাশ ডিল',
-      category: 'Flash Deal',
-      targetAudience: 'VIP Clients',
-      originalPrice: 15000,
-      offerPrice: 9999,
-      discountPercent: 33,
-      startDate: '2026-07-20',
-      endDate: '2026-07-30',
-      servicesIncluded: ['HD Bridal Makeup', 'Hair Styling', 'Saree Draping', 'Nail Art'],
-      status: 'Active',
-      isFeatured: true,
-      bookingsCount: 24,
-      bannerUrl: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=600&q=80',
-      description: 'Exclusive 10-day flash sale on luxury HD bridal packages.',
-      descriptionBn: 'বিলাসিবহুল এইচডি ব্রাইডাল প্যাকেজে বিশেষ ১০ দিনের ফ্ল্যাশ সেল।'
-    },
-    {
-      id: 3,
-      title: 'First Visit Special',
-      titleBn: 'ফার্স্ট ভিজিট স্পেশাল',
-      category: 'New Client',
-      targetAudience: 'New Clients',
-      originalPrice: 2000,
-      offerPrice: 1200,
-      discountPercent: 40,
-      startDate: '2026-06-01',
-      endDate: '2026-12-31',
-      servicesIncluded: ['Fruit Facial', 'Hair Cut & Wash'],
-      status: 'Active',
-      isFeatured: false,
-      bookingsCount: 142,
-      bannerUrl: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80',
-      description: 'Special welcome offer for first-time booked clients.',
-      descriptionBn: 'প্রথমবার বুকিং করা কাস্টমারদের জন্য আকর্ষণীয় ওয়েলকাম অফার।'
-    }
-  ]);
+  const [offers, setOffers] = useState([]);
+  const [loadError, setLoadError] = useState('');
 
   // States
   const [searchTerm, setSearchTerm] = useState('');
@@ -82,6 +25,8 @@ const Offers = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
   const [notifyOffer, setNotifyOffer] = useState(null);
+  const [broadcastStatus, setBroadcastStatus] = useState('');
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -141,6 +86,8 @@ const Offers = () => {
       descPlaceholder: 'অফারের চমৎকার বিবরণ লিখুন...',
       broadcastTitle: 'ব্রডকাস্ট নোটিফিকেশন',
       broadcastMsg: 'কাস্টমারদের কাছে প্রমোশন নোটিফিকেশন পাঠাতে চান?',
+      inAppOnly: 'এটি নির্বাচিত কাস্টমারদের অ্যাপের Notification তালিকায় যাবে। SMS ও ইমেইল পাঠানো কনফিগার করা নেই।',
+      broadcastSent: 'নোটিফিকেশন পাঠানো হয়েছে',
       smsBlast: 'SMS পাঠাতে চান',
       emailBlast: 'ইমেইল প্রমোশন পাঠাতে চান',
       sendNow: 'পাঠান (Send Now)',
@@ -188,6 +135,8 @@ const Offers = () => {
       descPlaceholder: 'Write an attractive description...',
       broadcastTitle: 'Broadcast Notification',
       broadcastMsg: 'Do you want to send promotional notification to clients?',
+      inAppOnly: 'This will appear in selected clients’ in-app notification list. SMS and email delivery are not configured.',
+      broadcastSent: 'Notifications sent',
       smsBlast: 'Send SMS Blast',
       emailBlast: 'Send Email Newsletter',
       sendNow: 'Send Now',
@@ -197,28 +146,48 @@ const Offers = () => {
 
   const currentT = t[lang] || t.en;
 
+  const loadOffers = async () => {
+    const { data } = await api.get('/offer/manage');
+    setOffers((data.offers || []).map(offer => ({
+      ...offer,
+      id: offer._id || offer.id,
+      originalPrice: offer.originalPrice || 0,
+      offerPrice: offer.offerPrice || 0,
+      startDate: offer.validFrom?.slice(0, 10),
+      endDate: offer.validTo?.slice(0, 10),
+      servicesIncluded: offer.servicesIncluded || offer.terms?.split(',').map(value => value.trim()).filter(Boolean) || [],
+      bannerUrl: offer.image || '',
+      bookingsCount: 0,
+      discountPercent: offer.originalPrice ? Math.round(((offer.originalPrice - offer.offerPrice) / offer.originalPrice) * 100) : 0,
+      status: offer.isActive === false || new Date(offer.validTo) < new Date() ? 'Expired' : 'Active'
+    })));
+  };
+
   useEffect(() => {
-    api.get('/offer').then(({ data }) => {
-      setOffers((data.offers || []).map(offer => ({
-        ...offer,
-        id: offer._id || offer.id,
-        originalPrice: offer.originalPrice || offer.discountValue,
-        offerPrice: offer.offerPrice || offer.discountValue,
-        startDate: offer.validFrom?.slice(0, 10),
-        endDate: offer.validTo?.slice(0, 10),
-        servicesIncluded: offer.servicesIncluded || [],
-        status: offer.isActive === false ? 'Expired' : 'Active'
-      })));
-    }).catch(() => {});
+    loadOffers().catch(error => setLoadError(error.response?.data?.message || error.message));
   }, []);
 
   // Handlers
-  const toggleFeatured = (id) => {
-    setOffers(prev => prev.map(o => o.id === id ? { ...o, isFeatured: !o.isFeatured } : o));
+  const toggleFeatured = async (id) => {
+    const offer = offers.find(item => item.id === id);
+    if (!offer) return;
+    try {
+      await api.put(`/offer/${id}`, { isFeatured: !offer.isFeatured });
+      await loadOffers();
+    } catch (error) {
+      setLoadError(error.response?.data?.message || error.message);
+    }
   };
 
-  const toggleStatus = (id) => {
-    setOffers(prev => prev.map(o => o.id === id ? { ...o, status: o.status === 'Active' ? 'Expired' : 'Active' } : o));
+  const toggleStatus = async (id) => {
+    const offer = offers.find(item => item.id === id);
+    if (!offer) return;
+    try {
+      await api.put(`/offer/${id}`, { isActive: offer.isActive === false || offer.status === 'Expired' });
+      await loadOffers();
+    } catch (error) {
+      setLoadError(error.response?.data?.message || error.message);
+    }
   };
 
   const handleShare = (offer) => {
@@ -239,11 +208,33 @@ const Offers = () => {
     a.click();
   };
 
-  const handleDelete = () => {
-    api.delete(`/offer/${deleteId}`).then(() => {
+  const handleDelete = async () => {
+    try {
+      await api.delete(`/offer/${deleteId}`);
       setOffers(prev => prev.filter(o => o.id !== deleteId));
       setDeleteId(null);
-    }).catch(() => {});
+    } catch (error) {
+      setLoadError(error.response?.data?.message || error.message);
+    }
+  };
+
+  const handleBroadcast = async () => {
+    setIsBroadcasting(true);
+    setBroadcastStatus('');
+    try {
+      const { data } = await api.post('/notification/broadcast', {
+        title: notifyOffer.title,
+        message: notifyOffer.description,
+        audience: notifyOffer.targetAudience,
+        relatedId: notifyOffer.id
+      });
+      setBroadcastStatus(`${currentT.broadcastSent}: ${data.createdCount || 0}`);
+      setNotifyOffer(null);
+    } catch (error) {
+      setBroadcastStatus(error.response?.data?.message || error.message || 'Unable to send notification');
+    } finally {
+      setIsBroadcasting(false);
+    }
   };
 
   const handleOpenEdit = (offer) => {
@@ -266,13 +257,17 @@ const Offers = () => {
     e.preventDefault();
     const orig = Number(formData.originalPrice);
     const off = Number(formData.offerPrice);
-    const discount = Math.round(((orig - off) / orig) * 100);
     const servicesArr = formData.servicesIncluded ? formData.servicesIncluded.split(',').map(s => s.trim()) : ['General Service'];
     const payload = {
       title: formData.title,
       description: formData.description,
       type: 'fixed',
       discountValue: Math.max(0, orig - off),
+      originalPrice: orig,
+      offerPrice: off,
+      category: formData.category,
+      targetAudience: formData.targetAudience,
+      servicesIncluded: servicesArr,
       validFrom: formData.startDate,
       validTo: formData.endDate,
       image: formData.bannerUrl,
@@ -283,49 +278,14 @@ const Offers = () => {
     try {
     if (editOffer) {
       await api.put(`/offer/${editOffer.id}`, payload);
-      setOffers(prev => prev.map(o => o.id === editOffer.id ? {
-        ...o,
-        title: formData.title,
-        titleBn: formData.title,
-        category: formData.category,
-        targetAudience: formData.targetAudience,
-        originalPrice: orig,
-        offerPrice: off,
-        discountPercent: discount,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        servicesIncluded: servicesArr,
-        bannerUrl: formData.bannerUrl || 'https://images.unsplash.com/photo-1560750588-73207b1ef5b8?auto=format&fit=crop&w=600&q=80',
-        description: formData.description,
-        descriptionBn: formData.description
-      } : o));
       setEditOffer(null);
     } else {
       await api.post('/offer', payload);
-      const newOffer = {
-        id: Date.now(),
-        title: formData.title,
-        titleBn: formData.title,
-        category: formData.category,
-        targetAudience: formData.targetAudience,
-        originalPrice: orig,
-        offerPrice: off,
-        discountPercent: discount,
-        startDate: formData.startDate || new Date().toISOString().split('T')[0],
-        endDate: formData.endDate,
-        servicesIncluded: servicesArr,
-        status: 'Active',
-        isFeatured: false,
-        bookingsCount: 0,
-        bannerUrl: formData.bannerUrl || 'https://images.unsplash.com/photo-1560750588-73207b1ef5b8?auto=format&fit=crop&w=600&q=80',
-        description: formData.description,
-        descriptionBn: formData.description
-      };
-      setOffers(prev => [newOffer, ...prev]);
       setIsAddModalOpen(false);
     }
+    await loadOffers();
     } catch (error) {
-      console.error('Offer save failed:', error);
+      setLoadError(error.response?.data?.message || error.message);
     }
   };
 
@@ -342,6 +302,8 @@ const Offers = () => {
 
   return (
     <div className="p-6 bg-slate-100/80 min-h-screen text-slate-800 space-y-6 font-sans">
+      {loadError && <p className="text-sm font-bold text-rose-600">{loadError}</p>}
+      {broadcastStatus && <p className="text-sm font-bold text-purple-700">{broadcastStatus}</p>}
       
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 text-white p-6 rounded-2xl shadow-xl border border-slate-800">
@@ -618,16 +580,10 @@ const Offers = () => {
               {currentT.broadcastMsg} <strong>"{notifyOffer.title}"</strong>
             </p>
 
-            <div className="space-y-2 text-xs">
-              <label className="flex items-center gap-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                <input type="checkbox" defaultChecked className="rounded text-purple-600" />
-                <span>{currentT.smsBlast} ({notifyOffer.targetAudience})</span>
-              </label>
-              <label className="flex items-center gap-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                <input type="checkbox" defaultChecked className="rounded text-purple-600" />
-                <span>{currentT.emailBlast}</span>
-              </label>
-            </div>
+            <p className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600">
+              {currentT.inAppOnly}
+            </p>
+            {broadcastStatus && <p role="alert" className="text-xs font-bold text-rose-600">{broadcastStatus}</p>}
 
             <div className="flex justify-end gap-2 pt-2">
               <button 
@@ -636,14 +592,12 @@ const Offers = () => {
               >
                 {currentT.cancel}
               </button>
-              <button 
-                onClick={() => {
-                  alert(lang === 'bn' ? 'নোটিফিকেশন পাঠানো হয়েছে!' : 'Broadcast sent successfully!');
-                  setNotifyOffer(null);
-                }}
-                className="px-5 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-200 hover:bg-purple-700"
+              <button
+                onClick={handleBroadcast}
+                disabled={isBroadcasting}
+                className="px-5 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-200 hover:bg-purple-700 disabled:opacity-60"
               >
-                {currentT.sendNow}
+                {isBroadcasting ? '...' : currentT.sendNow}
               </button>
             </div>
           </div>

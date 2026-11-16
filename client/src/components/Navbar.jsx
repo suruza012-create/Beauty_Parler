@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Sparkles, ShoppingBag, Menu, X, Calendar } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { items } = useCart();
+  const cartCount = items.reduce((count, item) => count + item.quantity, 0);
 
   return (
     <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-purple-100 shadow-sm">
@@ -36,7 +41,7 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-4">
             <Link to="/cart" className="p-2.5 bg-slate-100 hover:bg-purple-50 text-slate-700 rounded-2xl transition-all relative">
               <ShoppingBag className="w-4 h-4" />
-              <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">2</span>
+              <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{cartCount}</span>
             </Link>
             <button 
               onClick={() => navigate('/booking')} 
@@ -44,8 +49,8 @@ const Navbar = () => {
             >
               <Calendar className="w-3.5 h-3.5" /> Book Now
             </button>
-            <Link to="/login" className="text-xs font-bold text-purple-700 hover:underline">
-              Login
+            <Link to={user ? '/dashboard' : '/login'} className="text-xs font-bold text-purple-700 hover:underline">
+              {user ? user.name : 'Login'}
             </Link>
           </div>
 

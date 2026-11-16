@@ -65,22 +65,25 @@ const OrderSchema = new mongoose.Schema({
    * @required - এটি অবশ্যই দিতে হবে
    */
   deliveryAddress: {
-    street: {
-      type: String,
-      required: [true, 'Please provide street address']
-    },
-    city: {
-      type: String,
-      required: [true, 'Please provide city']
-    },
-    postalCode: {
-      type: String,
-      required: [true, 'Please provide postal code']
-    },
-    country: {
-      type: String,
-      required: [true, 'Please provide country'],
-      default: 'Bangladesh'
+    type: mongoose.Schema.Types.Mixed,
+    required: [true, 'Please provide delivery address'],
+    validate: {
+      validator: function(value) {
+        if (!value) return false;
+
+        if (typeof value === 'string') {
+          return value.trim().length > 0;
+        }
+
+        if (typeof value === 'object') {
+          const street = value.street || value.address || '';
+          const country = value.country || 'Bangladesh';
+          return String(street).trim().length > 0 && String(country).trim().length > 0;
+        }
+
+        return false;
+      },
+      message: 'Please provide a valid delivery address'
     }
   },
 
@@ -130,6 +133,16 @@ const OrderSchema = new mongoose.Schema({
   transactionId: {
     type: String,
     required: false
+  },
+  courier: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  trackingId: {
+    type: String,
+    trim: true,
+    default: ''
   },
 
   /**

@@ -274,98 +274,77 @@ const Products = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  const [products, setProducts] = useState([
-    {
-      id: 1,
-      name: "L'Oreal Professional Hair Spa Cream 500ml",
-      brand: "L'Oréal Paris",
-      category: "Hair Care",
-      regularPrice: 1200,
-      salePrice: 950,
-      stock: 18,
-      sku: "PROD-8801",
-      image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&q=80",
-    },
-    {
-      id: 2,
-      name: "Matte Liquid Lipstick - Ruby Red",
-      brand: "MAC",
-      category: "Makeup",
-      regularPrice: 1500,
-      salePrice: 1250,
-      stock: 4,
-      sku: "PROD-8802",
-      image: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400&q=80",
-    },
-    {
-      id: 3,
-      name: "Bridal Glow Facial Kit Gold 24K",
-      brand: "Lotus",
-      category: "Facial Kits",
-      regularPrice: 2800,
-      salePrice: 2400,
-      stock: 12,
-      sku: "PROD-8803",
-      image: "https://images.unsplash.com/photo-1560750588-73207b1ef5b8?w=400&q=80",
-    }
-  ]);
+  const [products, setProducts] = useState([]);
+
+  const [loadError, setLoadError] = useState('');
+  const loadProducts = async () => {
+    const { data } = await api.get('/product/manage');
+    setProducts((data.products || []).map(product => ({
+      ...product,
+      id: product._id || product.id,
+      sku: product.sku || product._id,
+      category: product.category === 'Skincare' ? 'Skin Care'
+        : product.category === 'Haircare' ? 'Hair Care'
+          : product.category === 'Nailcare' ? 'Nail Care' : product.category,
+      salePrice: product.price,
+      regularPrice: product.discount && product.discount < 100
+        ? Math.round(product.price / (1 - product.discount / 100))
+        : product.price,
+      image: product.images?.[0] || product.image || ''
+    })));
+  };
 
   useEffect(() => {
-    api.get('/product').then(({ data }) => {
-      setProducts((data.products || []).map((product, index) => ({
-        ...product,
-        id: product._id || product.id || product.sku || `product-${index}`,
-        image: product.images?.[0] || product.image || ''
-      })));
-    }).catch(() => {});
+    loadProducts().catch(error => setLoadError(error.response?.data?.message || error.message));
   }, []);
 
   const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || String(p.sku).toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCat = selectedCategory === 'All' || p.category === selectedCategory;
     return matchesSearch && matchesCat;
   });
 
   // নতুন প্রোডাক্ট অ্যাড বা আগেরটি আপডেট করার হ্যান্ডলার
   const handleSaveProduct = async (productData) => {
-    let imgUrl = productData.images?.[0] || productData.image || 'https://via.placeholder.com/300';
-    if (productData.imageFiles?.[0]) {
-      const uploadData = new FormData();
-      uploadData.append('file', productData.imageFiles[0]);
-      const uploadResponse = await api.post('/upload', uploadData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      imgUrl = uploadResponse.data.url;
-    }
-    const categoryMap = {
-      'Skin Care': 'Skincare',
-      'Hair Care': 'Haircare',
-      Makeup: 'Makeup',
-      'Facial Kits': 'Skincare'
-    };
-    const payload = {
-      name: productData.name,
-      brand: productData.brand,
-      category: categoryMap[productData.category] || 'Other',
-      description: productData.description || productData.name,
-      price: Number(productData.salePrice || productData.regularPrice || 0),
-      stock: Number(productData.stock || 0),
-      image: imgUrl,
-      weight: productData.skinType || '',
-      discount: productData.regularPrice && productData.salePrice
-        ? Math.max(0, Math.round((1 - productData.salePrice / productData.regularPrice) * 100))
-        : 0
-    };
     try {
+      let imgUrl = productData.images?.[0] || productData.image || 'default-product.jpg';
+      if (productData.imageFiles?.[0]) {
+        const uploadData = new FormData();
+        uploadData.append('file', productData.imageFiles[0]);
+        const uploadResponse = await api.post('/upload', uploadData);
+        imgUrl = uploadResponse.data.url;
+      }
+      const categoryMap = {
+        'Skin Care': 'Skincare',
+        'Hair Care': 'Haircare',
+        'Nail Care': 'Nailcare',
+        Makeup: 'Makeup',
+        'Facial Kits': 'Skincare'
+      };
+      const payload = {
+        name: productData.name,
+        brand: productData.brand,
+        category: categoryMap[productData.category] || 'Other',
+        description: productData.description || productData.name,
+        price: Number(productData.salePrice || productData.regularPrice || 0),
+        stock: Number(productData.stock || 0),
+        image: imgUrl,
+        weight: productData.skinType || '',
+        discount: productData.regularPrice && productData.salePrice
+          ? Math.min(99, Math.max(0, Math.round((1 - productData.salePrice / productData.regularPrice) * 100)))
+          : 0
+      };
       if (editingProduct) {
         await api.put(`/product/${editingProduct.id}`, payload);
-        setProducts(products.map(p => p.id === editingProduct.id ? { ...productData, image: imgUrl, id: p.id } : p));
       } else {
-        const response = await api.post('/product', payload);
-        setProducts([{ ...(response.data?.product || productData), image: imgUrl }, ...products]);
+        await api.post('/product', payload);
       }
+      await loadProducts();
+      setLoadError('');
+      setEditingProduct(null);
     } catch (error) {
-      console.error('Product save failed:', error);
+      setLoadError(error.response?.data?.message || error.message);
     }
-    setEditingProduct(null);
   };
 
   // এডিট বাটনে ক্লিকে মোডাল খোলা
@@ -382,12 +361,15 @@ const Products = () => {
 
   const handleDelete = (id) => {
     if (window.confirm(lang === 'bn' ? 'প্রোডাক্টটি ডিলিট করতে চান?' : 'Delete this product?')) {
-      api.delete(`/product/${id}`).then(() => setProducts(products.filter(p => p.id !== id))).catch(() => {});
+      api.delete(`/product/${id}`)
+        .then(() => setProducts(previous => previous.filter(product => product.id !== id)))
+        .catch(error => setLoadError(error.response?.data?.message || error.message));
     }
   };
 
   return (
     <div className="p-4 sm:p-6 bg-gradient-to-br from-slate-100 via-purple-50/50 to-pink-50/40 min-h-screen text-slate-800 space-y-6 font-sans max-w-7xl mx-auto">
+      {loadError && <p className="text-sm font-bold text-rose-600">{loadError}</p>}
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-purple-950 via-slate-900 to-indigo-950 text-white p-6 rounded-3xl shadow-2xl relative overflow-hidden border border-purple-800/30">

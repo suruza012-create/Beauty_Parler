@@ -17,7 +17,7 @@ const Shop = () => {
         name: product.name,
         brand: product.brand,
         price: product.price,
-        regPrice: product.price,
+        regPrice: product.discount ? Math.round(product.price / (1 - product.discount / 100)) : product.price,
         rating: product.averageRating || 0,
         category: product.category === 'Haircare' ? 'Hair Care' : product.category === 'Skincare' ? 'Skin Care' : product.category,
         image: product.image

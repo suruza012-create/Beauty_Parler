@@ -18,47 +18,7 @@ const UsersList = () => {
   const [formError, setFormError] = useState('');
 
   // রেজিস্টার্ড কাস্টমার ডেটা
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: "Smriti Roy",
-      email: "smriti@gmail.com",
-      phone: "+880 1712-345678",
-      role: "Customer",
-      memberType: "VIP Gold",
-      joinedDate: "3/12/2026",
-      totalOrders: 8,
-      totalSpent: 12500,
-      status: "Active",
-      avatarBg: "bg-gradient-to-tr from-pink-500 to-rose-500"
-    },
-    {
-      id: 2,
-      name: "Farhana Chowdhury",
-      email: "farhana@yahoo.com",
-      phone: "+880 1819-987654",
-      role: "Customer",
-      memberType: "Regular",
-      joinedDate: "5/18/2026",
-      totalOrders: 3,
-      totalSpent: 4200,
-      status: "Active",
-      avatarBg: "bg-gradient-to-tr from-purple-500 to-indigo-500"
-    },
-    {
-      id: 3,
-      name: "Riya Islam",
-      email: "riya.islam@gmail.com",
-      phone: "+880 1911-223344",
-      role: "Customer",
-      memberType: "Regular",
-      joinedDate: "7/2/2026",
-      totalOrders: 1,
-      totalSpent: 1500,
-      status: "Active",
-      avatarBg: "bg-gradient-to-tr from-blue-500 to-cyan-500"
-    }
-  ]);
+  const [users, setUsers] = useState([]);
 
   useEffect(() => {
     api.get('/auth/users').then(({ data }) => {
@@ -72,7 +32,7 @@ const UsersList = () => {
         status: user.isActive === false ? 'Blocked' : 'Active',
         avatarBg: 'bg-gradient-to-tr from-pink-500 to-rose-500'
       })));
-    }).catch(() => {});
+    }).catch(error => setFormError(error.response?.data?.message || error.message));
   }, []);
 
   // ফিল্টারিং

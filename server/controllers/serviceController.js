@@ -13,7 +13,7 @@ const Service = require('../models/Service');
  */
 exports.getAllServices = async (req, res) => {
   try {
-    const services = await Service.find();
+    const services = await Service.find({ isAvailable: true });
     
     res.json({
       success: true,
@@ -26,6 +26,16 @@ exports.getAllServices = async (req, res) => {
       success: false,
       message: 'Server Error. Please try again later.'
     });
+  }
+};
+
+exports.getAdminServices = async (req, res) => {
+  try {
+    const services = await Service.find().sort({ createdAt: -1 });
+    res.json({ success: true, count: services.length, services });
+  } catch (error) {
+    console.error('Get Admin Services Error:', error);
+    res.status(500).json({ success: false, message: 'Server Error. Please try again later.' });
   }
 };
 

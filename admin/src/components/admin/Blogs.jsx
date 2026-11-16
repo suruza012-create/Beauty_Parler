@@ -41,27 +41,7 @@ const Blogs = () => {
   const [loginCredentials, setLoginCredentials] = useState({ identifier: '', password: '' });
 
   // Feed Posts List
-  const [blogsList, setBlogsList] = useState([
-    {
-      id: 1,
-      title: 'Top 5 Bridal Makeup Trends 2026',
-      titleBn: '২০২৬ সালের সেরা ৫টি ব্রাইডাল মেকআপ লুক',
-      content: 'Check out full glass skin bridal glow makeup tutorial video!',
-      contentBn: 'গ্লাস স্কিন ব্রাইডাল গ্লো মেকআপের সম্পূর্ণ ভিডিওটি দেখে নিন!',
-      author: 'Sharmin Sultana',
-      publishDate: '2026-07-22',
-      mediaType: 'video', 
-      mediaUrl: 'https://assets.mixkit.co/videos/preview/mixkit-woman-applying-makeup-to-her-face-41584-large.mp4',
-      likes: 124,
-      isLiked: false,
-      syncedPlatforms: ['Facebook', 'Instagram', 'TikTok'],
-      comments: [
-        { id: 101, user: 'Nusrat Jahan', text: 'অনেক সুন্দর ভিডিওটি!' }
-      ],
-      showCommentInput: false,
-      newCommentText: ''
-    }
-  ]);
+  const [blogsList, setBlogsList] = useState([]);
 
   useEffect(() => {
     api.get('/blog').then(({ data }) => {

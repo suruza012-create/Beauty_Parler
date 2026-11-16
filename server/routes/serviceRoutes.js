@@ -9,6 +9,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getAllServices,
+  getAdminServices,
   getSingleService,
   createService,
   updateService,
@@ -22,6 +23,7 @@ const { auth, admin } = require('../middleware/auth');
  * @access  Public
  */
 router.get('/', getAllServices);
+router.get('/manage', auth, admin, getAdminServices);
 
 /**
  * @route   GET /api/services/:id

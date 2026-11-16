@@ -12,50 +12,8 @@ const Coupons = () => {
   const lang = Array.isArray(context) ? context[0] : (context?.lang || 'bn');
 
   // Sample Coupons Data
-  const [coupons, setCoupons] = useState([
-    {
-      id: 1,
-      code: 'WELCOME50',
-      discountType: 'Percentage', // Percentage or Fixed
-      discountValue: 20,
-      minSpend: 1000,
-      maxDiscount: 500,
-      expiryDate: '2026-12-31',
-      usageLimit: 100,
-      usedCount: 45,
-      status: 'Active',
-      description: '20% off for first-time online bookings.',
-      descriptionBn: 'প্রথমবার বুকিং করা কাস্টমারদের জন্য ২০% ডিসকাউন্ট।'
-    },
-    {
-      id: 2,
-      code: 'EIDSPECIAL',
-      discountType: 'Fixed',
-      discountValue: 300,
-      minSpend: 2500,
-      maxDiscount: 300,
-      expiryDate: '2026-08-30',
-      usageLimit: 50,
-      usedCount: 50,
-      status: 'Expired',
-      description: 'Flat ৳300 off on festive combo services.',
-      descriptionBn: 'উৎসবের কম্বো সার্ভিসে ফ্ল্যাট ৳৩০০ ছাড়।'
-    },
-    {
-      id: 3,
-      code: 'VIPGLOW',
-      discountType: 'Percentage',
-      discountValue: 15,
-      minSpend: 3000,
-      maxDiscount: 1000,
-      expiryDate: '2026-10-15',
-      usageLimit: 200,
-      usedCount: 88,
-      status: 'Active',
-      description: 'Exclusive 15% discount for VIP members.',
-      descriptionBn: 'ভিআইপি মেম্বারদের জন্য বিশেষ ১৫% ডিসকাউন্ট।'
-    }
-  ]);
+  const [coupons, setCoupons] = useState([]);
+  const [loadError, setLoadError] = useState('');
 
   // States
   const [searchTerm, setSearchTerm] = useState('');
@@ -154,17 +112,20 @@ const Coupons = () => {
 
   const currentT = t[lang] || t.en;
 
+  const loadCoupons = async () => {
+    const { data } = await api.get('/coupon/manage');
+    setCoupons((data.coupons || []).map(coupon => ({
+      ...coupon,
+      id: coupon._id || coupon.id,
+      minSpend: coupon.minOrder,
+      expiryDate: coupon.validTo?.slice(0, 10),
+      status: coupon.isActive === false || new Date(coupon.validTo) < new Date() ? 'Expired' : 'Active',
+      discountType: coupon.discountType === 'percentage' ? 'Percentage' : 'Fixed'
+    })));
+  };
+
   useEffect(() => {
-    api.get('/coupon').then(({ data }) => {
-      setCoupons((data.coupons || []).map(coupon => ({
-        ...coupon,
-        id: coupon._id || coupon.id,
-        minSpend: coupon.minOrder,
-        expiryDate: coupon.validTo?.slice(0, 10),
-        status: coupon.isActive === false ? 'Expired' : 'Active',
-        discountType: coupon.discountType === 'percentage' ? 'Percentage' : 'Fixed'
-      })));
-    }).catch(() => {});
+    loadCoupons().catch(error => setLoadError(error.response?.data?.message || error.message));
   }, []);
 
   // Handlers
@@ -190,11 +151,14 @@ const Coupons = () => {
     a.click();
   };
 
-  const handleDelete = () => {
-    api.delete(`/coupon/${deleteId}`).then(() => {
+  const handleDelete = async () => {
+    try {
+      await api.delete(`/coupon/${deleteId}`);
       setCoupons(prev => prev.filter(c => c.id !== deleteId));
       setDeleteId(null);
-    }).catch(() => {});
+    } catch (error) {
+      setLoadError(error.response?.data?.message || error.message);
+    }
   };
 
   const handleOpenEdit = (coupon) => {
@@ -228,38 +192,13 @@ const Coupons = () => {
     try {
     if (editCoupon) {
       await api.put(`/coupon/${editCoupon.id}`, payload);
-      setCoupons(prev => prev.map(c => c.id === editCoupon.id ? {
-        ...c,
-        code: formData.code.toUpperCase(),
-        discountType: formData.discountType,
-        discountValue: Number(formData.discountValue),
-        minSpend: Number(formData.minSpend),
-        maxDiscount: Number(formData.maxDiscount || formData.discountValue),
-        expiryDate: formData.expiryDate,
-        usageLimit: Number(formData.usageLimit),
-        description: formData.description,
-        descriptionBn: formData.description
-      } : c));
       setEditCoupon(null);
     } else {
       await api.post('/coupon', payload);
-      const newCoupon = {
-        id: Date.now(),
-        code: formData.code.toUpperCase(),
-        discountType: formData.discountType,
-        discountValue: Number(formData.discountValue),
-        minSpend: Number(formData.minSpend),
-        maxDiscount: Number(formData.maxDiscount || formData.discountValue),
-        expiryDate: formData.expiryDate,
-        usageLimit: Number(formData.usageLimit),
-        usedCount: 0,
-        status: 'Active',
-        description: formData.description,
-        descriptionBn: formData.description
-      };
-      setCoupons(prev => [newCoupon, ...prev]);
       setIsAddModalOpen(false);
     }
+    await loadCoupons();
+    setLoadError('');
     } catch (error) {
       console.error('Coupon save failed:', error);
     }
@@ -275,6 +214,7 @@ const Coupons = () => {
 
   return (
     <div className="p-6 bg-slate-100/80 min-h-screen text-slate-800 space-y-6 font-sans">
+      {loadError && <p className="text-sm font-bold text-rose-600">{loadError}</p>}
       
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 rounded-2xl shadow-xl border border-slate-800">

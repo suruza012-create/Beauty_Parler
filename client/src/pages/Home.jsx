@@ -15,152 +15,68 @@ const Home = () => {
   const [bookingDate, setBookingDate] = useState('');
   const [featuredServices, setFeaturedServices] = useState([]);
   const [featuredProducts, setFeaturedProducts] = useState([]);
-
-  // Dummy Featured Services
-  const fallbackFeaturedServices = [
-    {
-      id: 1,
-      title: 'Bridal Glow Facial & Spa',
-      category: 'Facial & Skin',
-      price: 2500,
-      oldPrice: 3000,
-      rating: 4.9,
-      reviews: 128,
-      duration: '90 Mins',
-      image: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&q=80'
-    },
-    {
-      id: 2,
-      title: 'Keratin Hair Rebonding & Therapy',
-      category: 'Hair Care',
-      price: 4500,
-      oldPrice: 5500,
-      rating: 4.8,
-      reviews: 95,
-      duration: '120 Mins',
-      image: 'https://images.unsplash.com/photo-1562322140-8baeececf3df?w=600&q=80'
-    },
-    {
-      id: 3,
-      title: 'HD Reception Makeup Package',
-      category: 'Makeup',
-      price: 6000,
-      oldPrice: 7500,
-      rating: 5.0,
-      reviews: 210,
-      duration: '150 Mins',
-      image: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=600&q=80'
-    },
-    {
-      id: 4,
-      title: 'Pedicure & Manicure Deluxe Spa',
-      category: 'Nail & Body',
-      price: 1800,
-      oldPrice: 2200,
-      rating: 4.7,
-      reviews: 64,
-      duration: '60 Mins',
-      image: 'https://images.unsplash.com/photo-1519014816548-bf5fe059798b?w=600&q=80'
-    }
-  ];
-
-  // Dummy Featured Products
-  const fallbackFeaturedProducts = [
-    {
-      id: 101,
-      name: "L'Oreal Professional Hair Spa Cream 500ml",
-      brand: "L'Oréal Paris",
-      price: 950,
-      regularPrice: 1200,
-      rating: 4.9,
-      image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=500&q=80'
-    },
-    {
-      id: 102,
-      name: "Matte Liquid Lipstick - Ruby Red",
-      brand: "MAC",
-      price: 1250,
-      regularPrice: 1500,
-      rating: 5.0,
-      image: 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=500&q=80'
-    },
-    {
-      id: 103,
-      name: "Bridal Glow Facial Kit Gold 24K",
-      brand: "Lotus",
-      price: 2400,
-      regularPrice: 2800,
-      rating: 4.8,
-      image: 'https://images.unsplash.com/photo-1560750588-73207b1ef5b8?w=500&q=80'
-    },
-    {
-      id: 104,
-      name: "Skin Brightening Vitamin C Serum 30ml",
-      brand: "The Ordinary",
-      price: 1100,
-      regularPrice: 1350,
-      rating: 4.9,
-      image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=500&q=80'
-    }
-  ];
+  const [serviceOptions, setServiceOptions] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [featuredOffer, setFeaturedOffer] = useState(null);
+  const [contentError, setContentError] = useState('');
 
   useEffect(() => {
-    Promise.all([apiGet('/service'), apiGet('/product')]).then(([serviceData, productData]) => {
-      const services = (serviceData.services || []).map(service => ({
-        id: service._id,
-        title: service.name,
-        category: service.category,
-        price: service.price,
-        oldPrice: service.price,
-        rating: service.averageRating || 0,
-        reviews: service.totalReviews || 0,
-        duration: service.duration,
-        image: service.image
-      }));
-      const products = (productData.products || []).map(product => ({
-        id: product._id,
-        name: product.name,
-        brand: product.brand,
-        price: product.price,
-        regularPrice: product.price,
-        rating: product.averageRating || 0,
-        image: product.image
-      }));
-      setFeaturedServices(services.length ? services.slice(0, 4) : fallbackFeaturedServices);
-      setFeaturedProducts(products.length ? products.slice(0, 4) : fallbackFeaturedProducts);
-    }).catch(() => {
-      setFeaturedServices(fallbackFeaturedServices);
-      setFeaturedProducts(fallbackFeaturedProducts);
-    });
-  }, []);
+    const loadHomeContent = async () => {
+      const results = await Promise.allSettled([
+        apiGet('/service'),
+        apiGet('/product'),
+        apiGet('/review'),
+        apiGet('/offer/active')
+      ]);
+      const failures = results.filter(result => result.status === 'rejected');
+      if (failures.length) setContentError(failures[0].reason.message);
 
-  // Customer Reviews
-  const reviews = [
-    {
-      id: 1,
-      name: "Sultana Razia",
-      role: "Bridal Package Client",
-      comment: "Glow&Grace-এর ফেসিয়াল এবং ব্রাইডাল মেকআপ সার্ভিস অসাধারণ ছিল! পার্লারের পরিবেশ খুব সুন্দর এবং বিউটিশিয়ানদের ব্যবহার অনেক ভালো।",
-      rating: 5,
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80"
-    },
-    {
-      id: 2,
-      name: "Anika Rahman",
-      role: "Regular Customer",
-      comment: "এদের হেয়ার স্পা ট্রিমেন্ট নেওয়ার পর চুল অনেক সিল্কি হয়েছে। এছাড়া অনলাইন থেকে কেনা লোরিয়েল স্পা ক্রিমটি ১ দিনেই ডেলিভারি পেয়েছি!",
-      rating: 5,
-      avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&q=80"
-    },
-    {
-      id: 3,
-      name: "Farhana Nusrat",
-      role: "Makeup Client",
-      comment: "অনলাইনে অ্যাপয়েন্টমেন্ট বুক করে গিয়েছিলাম, কোনো ওয়েট করতে হয়নি। সার্ভিস কোয়ালিটি অত্যন্ত প্রফেশনাল।",
-      rating: 5,
-      avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&q=80"
-    }
-  ];
+      if (results[0].status === 'fulfilled') {
+        const services = (results[0].value.services || []).map(service => ({
+          id: service._id,
+          title: service.name,
+          category: service.category === 'Hair' ? 'Hair Care' : service.category === 'Skin' ? 'Facial & Skin' : service.category,
+          price: service.price,
+          oldPrice: service.discount ? Math.round(service.price / (1 - service.discount / 100)) : service.price,
+          rating: service.averageRating || 0,
+          reviews: service.totalReviews || 0,
+          duration: service.duration,
+          image: service.image
+        }));
+        setServiceOptions(services);
+        setFeaturedServices(services.slice(0, 4));
+      }
+
+      if (results[1].status === 'fulfilled') {
+        setFeaturedProducts((results[1].value.products || []).slice(0, 4).map(product => ({
+          id: product._id,
+          name: product.name,
+          brand: product.brand,
+          price: product.price,
+          regularPrice: product.discount ? Math.round(product.price / (1 - product.discount / 100)) : product.price,
+          rating: product.averageRating || 0,
+          image: product.image
+        })));
+      }
+
+      if (results[2].status === 'fulfilled') {
+        setReviews((results[2].value.reviews || []).map(review => ({
+          id: review._id,
+          name: review.userId?.name || 'Client',
+          role: review.serviceId?.name || 'Verified Client',
+          comment: review.comment,
+          rating: Math.round(review.rating || 0),
+          avatar: review.images?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80'
+        })));
+      }
+
+      if (results[3].status === 'fulfilled') {
+        setFeaturedOffer(results[3].value.offers?.[0] || null);
+      }
+    };
+
+    loadHomeContent();
+  }, []);
 
   const handleQuickBookingSubmit = (e) => {
     e.preventDefault();
@@ -237,20 +153,20 @@ const Home = () => {
           <div className="relative">
             <div className="relative mx-auto max-w-md lg:max-w-none">
               <img 
-                src="https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80" 
+                src={featuredOffer?.image || featuredServices[0]?.image || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80'}
                 alt="Beauty Parlour Service" 
                 className="rounded-3xl shadow-2xl border-4 border-white/10 object-cover w-full h-[380px] sm:h-[460px]"
               />
               {/* Floating Discount Tag */}
-              <div className="absolute -bottom-6 -left-6 bg-white text-slate-900 p-4 rounded-2xl shadow-2xl border border-purple-100 hidden sm:flex items-center gap-3">
+              {featuredOffer && <div className="absolute -bottom-6 -left-6 bg-white text-slate-900 p-4 rounded-2xl shadow-2xl border border-purple-100 hidden sm:flex items-center gap-3">
                 <div className="p-3 bg-pink-100 text-pink-600 rounded-xl">
                   <Gift className="w-6 h-6 animate-bounce" />
                 </div>
                 <div>
-                  <h5 className="font-black text-sm">20% Special Discount</h5>
-                  <p className="text-xs text-slate-500 font-medium">On First Online Booking</p>
+                  <h5 className="font-black text-sm">{featuredOffer.type === 'percentage' ? `${featuredOffer.discountValue}% Special Discount` : `৳${featuredOffer.discountValue} Special Discount`}</h5>
+                  <p className="text-xs text-slate-500 font-medium">{featuredOffer.title}</p>
                 </div>
-              </div>
+              </div>}
             </div>
           </div>
 
@@ -280,10 +196,7 @@ const Home = () => {
                 required
               >
                 <option value="">Select Service...</option>
-                <option value="Bridal Glow Facial">Bridal Glow Facial</option>
-                <option value="Keratin Hair Rebonding">Keratin Hair Rebonding</option>
-                <option value="HD Reception Makeup">HD Reception Makeup</option>
-                <option value="Pedicure & Manicure Spa">Pedicure & Manicure Spa</option>
+                {serviceOptions.map(service => <option key={service.id} value={service.title}>{service.title}</option>)}
               </select>
 
               <input 
@@ -325,6 +238,7 @@ const Home = () => {
           </Link>
         </div>
 
+        {contentError && <p className="text-center text-rose-600 font-bold">{contentError}</p>}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {featuredServices.map((service) => (
             <div key={service.id} className="bg-white rounded-3xl border border-purple-100 shadow-xl overflow-hidden hover:shadow-2xl hover:-translate-y-1 transition-all group flex flex-col justify-between">
@@ -490,7 +404,7 @@ const Home = () => {
               <div key={rev.id} className="bg-white p-6 rounded-3xl shadow-xl border border-purple-100 space-y-4 flex flex-col justify-between">
                 <div className="space-y-3">
                   <div className="flex items-center gap-1 text-amber-400">
-                    {[...Array(rev.rating)].map((_, i) => (
+                    {Array.from({ length: rev.rating }).map((_, i) => (
                       <Star key={i} className="w-4 h-4 fill-amber-400" />
                     ))}
                   </div>

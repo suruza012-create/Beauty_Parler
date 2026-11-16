@@ -103,6 +103,16 @@ exports.createOrder = async (req, res) => {
         message: 'Please provide delivery address and phone'
       });
     }
+
+    const normalizedAddress = typeof deliveryAddress === 'string'
+      ? { street: deliveryAddress.trim(), city: '', postalCode: '', country: 'Bangladesh' }
+      : deliveryAddress;
+    if (!normalizedAddress?.street?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a delivery address'
+      });
+    }
     
     // প্রতিটি আইটেমের স্টক চেক করো
     for (const item of items) {
@@ -148,9 +158,9 @@ exports.createOrder = async (req, res) => {
       userId: req.user.id,
       items: orderItems,
       totalAmount,
-      deliveryAddress,
+      deliveryAddress: normalizedAddress,
       phone,
-      paymentMethod: paymentMethod || 'cash',
+      paymentMethod: paymentMethod === 'mobile' ? 'bkash' : (paymentMethod || 'cash'),
       note: note || ''
     });
     
@@ -175,12 +185,12 @@ exports.createOrder = async (req, res) => {
  */
 exports.updateOrderStatus = async (req, res) => {
   try {
-    const { orderStatus } = req.body;
+    const { orderStatus, courier, trackingId } = req.body;
     
-    if (!orderStatus) {
+    if (!orderStatus && courier === undefined && trackingId === undefined) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide orderStatus'
+        message: 'Please provide an order status or tracking update'
       });
     }
     
@@ -194,8 +204,11 @@ exports.updateOrderStatus = async (req, res) => {
     }
     
     // যদি অর্ডার ডেলিভারি হয়, ডেলিভারি তারিখ সেট করো
-    const updateData = { orderStatus };
-    if (orderStatus === 'delivered') {
+    const updateData = {};
+    if (orderStatus) updateData.orderStatus = String(orderStatus).toLowerCase();
+    if (courier !== undefined) updateData.courier = courier;
+    if (trackingId !== undefined) updateData.trackingId = trackingId;
+    if (String(orderStatus).toLowerCase() === 'delivered') {
       updateData.deliveredAt = Date.now();
     }
     
@@ -206,7 +219,7 @@ exports.updateOrderStatus = async (req, res) => {
     
     res.json({
       success: true,
-      message: `Order status updated to ${orderStatus}`,
+      message: orderStatus ? `Order status updated to ${orderStatus}` : 'Order tracking updated',
       order
     });
   } catch (error) {

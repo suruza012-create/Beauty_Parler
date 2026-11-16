@@ -21,6 +21,16 @@ exports.getCoupons = async (req, res) => {
   }
 };
 
+exports.getAdminCoupons = async (req, res) => {
+  try {
+    const coupons = await Coupon.find().sort({ createdAt: -1 });
+    res.json({ success: true, count: coupons.length, coupons });
+  } catch (error) {
+    console.error('Get Admin Coupons Error:', error);
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+  }
+};
+
 // ============================================
 // VALIDATE COUPON
 // ============================================

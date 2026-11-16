@@ -5,22 +5,34 @@ const CartContext = createContext(null);
 export const CartProvider = ({ children }) => {
 	const [items, setItems] = useState(() => {
 		const saved = localStorage.getItem('cartItems');
-		return saved ? JSON.parse(saved) : [];
+		try {
+			return saved ? JSON.parse(saved) : [];
+		} catch {
+			localStorage.removeItem('cartItems');
+			return [];
+		}
 	});
 
 	const updateItems = (nextItems) => {
-		setItems(nextItems);
-		localStorage.setItem('cartItems', JSON.stringify(nextItems));
+		const resolvedItems = typeof nextItems === 'function' ? nextItems(items) : nextItems;
+		setItems(resolvedItems);
+		localStorage.setItem('cartItems', JSON.stringify(resolvedItems));
 	};
 
 	const addItem = (product) => {
-		const existing = items.find(item => item.productId === product.productId);
-		updateItems(existing
-			? items.map(item => item.productId === product.productId ? { ...item, quantity: item.quantity + 1 } : item)
-			: [...items, { ...product, quantity: 1 }]);
+		updateItems((currentItems) => {
+			const existing = currentItems.find(item => item.productId === product.productId);
+			if (existing) {
+				return currentItems.map(item => item.productId === product.productId
+					? { ...item, quantity: item.quantity + 1 }
+					: item
+				);
+			}
+			return [...currentItems, { ...product, quantity: 1 }];
+		});
 	};
 
-	const removeItem = (productId) => updateItems(items.filter(item => item.productId !== productId));
+	const removeItem = (productId) => updateItems((currentItems) => currentItems.filter(item => item.productId !== productId));
 	const clearCart = () => updateItems([]);
 	const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 

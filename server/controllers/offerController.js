@@ -27,6 +27,16 @@ exports.getOffers = async (req, res) => {
   }
 };
 
+exports.getAdminOffers = async (req, res) => {
+  try {
+    const offers = await Offer.find().sort({ createdAt: -1 });
+    res.json({ success: true, count: offers.length, offers });
+  } catch (error) {
+    console.error('Get Admin Offers Error:', error);
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+  }
+};
+
 // ============================================
 // GET ACTIVE OFFERS
 // ============================================

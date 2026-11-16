@@ -11,7 +11,7 @@ const Checkout = () => {
   const { items, clearCart } = useCart();
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({ phone: '', address: '', paymentMethod: 'cash' });
+  const [form, setForm] = useState({ name: user?.name || '', phone: user?.phone || '', address: '', paymentMethod: 'cash' });
 
   if (success) {
     return (
@@ -35,16 +35,17 @@ const Checkout = () => {
           if (!user) return setError('Please login before placing an order.');
           if (!items.length) return setError('Your cart is empty.');
           try {
-            const orderResult = await apiPost('/order', { items: items.map(item => ({ productId: item.productId, quantity: item.quantity })), deliveryAddress: form.address, phone: form.phone, paymentMethod: form.paymentMethod });
+            const paymentMethod = form.paymentMethod === 'mobile' ? 'bkash' : form.paymentMethod;
+            const orderResult = await apiPost('/order', { items: items.map(item => ({ productId: item.productId, quantity: item.quantity })), deliveryAddress: form.address, phone: form.phone, paymentMethod });
             if (form.paymentMethod !== 'cash' && orderResult.order?._id) {
-              await apiPost('/payment', { orderId: orderResult.order._id, amount: orderResult.order.totalAmount, method: form.paymentMethod === 'mobile' ? 'bkash' : 'cash' });
+              await apiPost('/payment', { orderId: orderResult.order._id, amount: orderResult.order.totalAmount, method: paymentMethod });
             }
             clearCart();
             setSuccess(true);
           } catch (requestError) { setError(requestError.message); }
         }} className="bg-white p-6 sm:p-8 rounded-3xl shadow-xl space-y-4 border border-purple-100">
           <h2 className="text-xl font-black text-slate-900">Delivery & Payment Details</h2>
-          <input type="text" placeholder="Full Name" className="w-full p-3 bg-slate-50 border rounded-2xl text-xs font-bold" required />
+          <input type="text" placeholder="Full Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full p-3 bg-slate-50 border rounded-2xl text-xs font-bold" required />
           <input type="tel" placeholder="Phone Number" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="w-full p-3 bg-slate-50 border rounded-2xl text-xs font-bold" required />
           <textarea placeholder="Delivery Address" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full p-3 bg-slate-50 border rounded-2xl text-xs font-bold" required></textarea>
           <div className="space-y-2">

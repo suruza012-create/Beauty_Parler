@@ -17,9 +17,12 @@ const Services = () => {
       .then(({ services = [] }) => setAllServices(services.map(service => ({
         id: service._id,
         title: service.name,
-        category: service.category === 'Hair' ? 'Hair Care' : service.category === 'Skin' ? 'Facial & Skin' : service.category,
+        category: service.category === 'Hair' ? 'Hair Care'
+          : service.category === 'Skin' ? 'Facial & Skin'
+            : service.category === 'Nail' ? 'Nail & Body'
+              : ['Spa', 'Massage'].includes(service.category) ? 'Spa & Massage' : service.category,
         price: service.price,
-        oldPrice: service.price + (service.discount ? Math.round(service.price * service.discount / 100) : 0),
+        oldPrice: service.discount ? Math.round(service.price / (1 - service.discount / 100)) : service.price,
         rating: service.averageRating || 0,
         reviews: service.totalReviews || 0,
         duration: service.duration,

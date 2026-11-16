@@ -23,6 +23,7 @@ const offerRoutes = require('./routes/offerRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const contentRoutes = require('./routes/contentRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
@@ -72,6 +73,7 @@ app.use('/api/offer', offerRoutes);
 app.use('/api/report', reportRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/notification', notificationRoutes);
 
 // Test Route
 app.get('/', (req, res) => {

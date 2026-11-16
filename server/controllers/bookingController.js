@@ -74,7 +74,7 @@ exports.getSingleBooking = async (req, res) => {
 // ============================================
 exports.createBooking = async (req, res) => {
   try {
-    const { serviceId, serviceName, customerName, bookingDate, bookingTime, note, status } = req.body;
+    const { serviceId, serviceName, customerName, phone, staff, bookingDate, bookingTime, note, status } = req.body;
     let resolvedServiceId = serviceId;
     let resolvedUserId = req.user.id;
 
@@ -115,6 +115,9 @@ exports.createBooking = async (req, res) => {
     const booking = await Booking.create({
       userId: resolvedUserId,
       serviceId: resolvedServiceId,
+      customerName: customerName || '',
+      phone: phone || '',
+      staff: staff || '',
       bookingDate,
       bookingTime,
       note: note || '',
@@ -158,7 +161,20 @@ exports.updateBooking = async (req, res) => {
         message: 'Cannot update booking. Status is not pending.'
       });
     }
-    booking = await Booking.findByIdAndUpdate(req.params.id, req.body, {
+    const updates = {
+      serviceId: req.body.serviceId,
+      bookingDate: req.body.bookingDate,
+      bookingTime: req.body.bookingTime,
+      note: req.body.note,
+      customerName: req.body.customerName,
+      phone: req.body.phone,
+      staff: req.body.staff
+    };
+    if (req.user.role === 'admin' && req.body.status) {
+      updates.status = String(req.body.status).toLowerCase();
+    }
+    Object.keys(updates).forEach(key => updates[key] === undefined && delete updates[key]);
+    booking = await Booking.findByIdAndUpdate(req.params.id, updates, {
       new: true,
       runValidators: true
     });
@@ -218,7 +234,7 @@ exports.updateBookingStatus = async (req, res) => {
         message: 'Booking not found'
       });
     }
-    booking = await Booking.findByIdAndUpdate(req.params.id, { status }, {
+    booking = await Booking.findByIdAndUpdate(req.params.id, { status: String(status).toLowerCase() }, {
       new: true,
       runValidators: true
     });

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getCoupons,
+  getAdminCoupons,
   validateCoupon,
   createCoupon,
   updateCoupon,
@@ -10,6 +11,7 @@ const {
 const { auth, admin } = require('../middleware/auth');
 
 router.get('/', getCoupons);
+router.get('/manage', auth, admin, getAdminCoupons);
 router.post('/validate', validateCoupon);
 router.post('/', auth, admin, createCoupon);
 router.put('/:id', auth, admin, updateCoupon);
