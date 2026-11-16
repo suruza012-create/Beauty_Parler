@@ -129,9 +129,11 @@ const Footer = () => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-purple-900/60 flex flex-col sm:flex-row items-center justify-between text-[11px] text-purple-300/70 gap-3">
           <p>© {new Date().getFullYear()} {settings?.siteName || 'Glow&Grace Beauty Parlour'}. All rights reserved.</p>
-          <p className="flex items-center gap-1">
-            Crafted with care for ultimate beauty & wellness.
-          </p>
+          <div className="flex items-center gap-4">
+            <Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link to="/terms" className="hover:text-white transition-colors">Terms & Cancellation</Link>
+          </div>
+          <p className="flex items-center gap-1">Crafted with care for beauty & wellness.</p>
         </div>
 
       </div>

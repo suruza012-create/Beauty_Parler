@@ -82,6 +82,7 @@ Booking email updates and 20-24 hour appointment reminders are optional. Configu
 - Dashboard loads notifications
 - `/health` returns success
 - Protected routes return 401 without token
+- Review Privacy Policy and Terms/Cancellation text; replace contact details through admin settings and get the final policy approved for your business
 
 ## 5) Payment Setup
 

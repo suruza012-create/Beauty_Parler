@@ -11,6 +11,7 @@ import ProductDetails from './pages/ProductDetails';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import PaymentResult from './pages/PaymentResult';
+import LegalPage from './pages/LegalPage';
 import About from './pages/About';
 import Gallery from './pages/Gallery';
 import Videos from './pages/Videos';
@@ -44,6 +45,8 @@ function App() {
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/payment/result" element={<PaymentResult />} />
+              <Route path="/privacy" element={<LegalPage page="privacy" />} />
+              <Route path="/terms" element={<LegalPage page="terms" />} />
               <Route path="/about" element={<About />} />
               <Route path="/gallery" element={<Gallery />} />
               <Route path="/videos" element={<Videos />} />
