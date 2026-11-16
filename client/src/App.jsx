@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import Services from './pages/Services';
+import BeautyFinder from './pages/BeautyFinder';
 import ServiceDetails from './pages/ServiceDetails';
 import Booking from './pages/Booking';
 import Shop from './pages/Shop';
@@ -34,6 +35,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/services" element={<Services />} />
+              <Route path="/beauty-finder" element={<BeautyFinder />} />
               <Route path="/services/:id" element={<ServiceDetails />} />
               <Route path="/booking" element={<Booking />} />
               <Route path="/shop" element={<Shop />} />

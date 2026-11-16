@@ -27,9 +27,10 @@ const Navbar = () => {
           </Link>
 
           {/* Desktop Nav Links */}
-          <div className="hidden md:flex items-center gap-6 text-xs font-bold text-slate-600">
+          <div className="hidden lg:flex items-center gap-4 text-xs font-bold text-slate-600">
             <Link to="/" className="hover:text-purple-600 transition-colors">Home</Link>
             <Link to="/services" className="hover:text-purple-600 transition-colors">Services</Link>
+            <Link to="/beauty-finder" className="hover:text-purple-600 transition-colors">Finder</Link>
             <Link to="/shop" className="hover:text-purple-600 transition-colors">Cosmetics</Link>
             <Link to="/gallery" className="hover:text-purple-600 transition-colors">Gallery</Link>
             <Link to="/blog" className="hover:text-purple-600 transition-colors">Blog</Link>
@@ -38,7 +39,7 @@ const Navbar = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden lg:flex items-center gap-4">
             <Link to="/cart" className="p-2.5 bg-slate-100 hover:bg-purple-50 text-slate-700 rounded-2xl transition-all relative">
               <ShoppingBag className="w-4 h-4" />
               <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{cartCount}</span>
@@ -55,7 +56,7 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center gap-2">
+          <div className="lg:hidden flex items-center gap-2">
             <Link to="/cart" className="p-2 bg-slate-100 text-slate-700 rounded-xl">
               <ShoppingBag className="w-4 h-4" />
             </Link>
@@ -69,9 +70,10 @@ const Navbar = () => {
 
       {/* Mobile Dropdown Menu */}
       {isOpen && (
-        <div className="md:hidden bg-white border-b border-purple-100 px-6 py-4 space-y-3 text-xs font-bold text-slate-700">
+        <div className="lg:hidden bg-white border-b border-purple-100 px-6 py-4 space-y-3 text-xs font-bold text-slate-700">
           <Link to="/" onClick={() => setIsOpen(false)} className="block py-1">Home</Link>
           <Link to="/services" onClick={() => setIsOpen(false)} className="block py-1">Services</Link>
+          <Link to="/beauty-finder" onClick={() => setIsOpen(false)} className="block py-1">Beauty Finder</Link>
           <Link to="/shop" onClick={() => setIsOpen(false)} className="block py-1">Cosmetics</Link>
           <Link to="/booking" onClick={() => setIsOpen(false)} className="block py-1 text-pink-600">Book Appointment</Link>
           <Link to="/gallery" onClick={() => setIsOpen(false)} className="block py-1">Gallery</Link>
