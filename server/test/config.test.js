@@ -87,3 +87,19 @@ test('booking reminders use the configured local timezone', () => {
   assert.equal(getReminderDelayMinutes({ bookingDate: '2026-11-17', bookingTime: '06:00 AM' }, now), 1440);
   assert.equal(getReminderDelayMinutes({ bookingDate: '2026-11-16', bookingTime: '05:30 AM' }, now), -30);
 });
+
+test('SSLCommerz payments require matching transaction, amount and BDT currency', () => {
+  const { isValidSslCommerzTransaction } = require('../utils/sslcommerz');
+  const payment = { transactionId: 'BP123456', amount: 250 };
+  const valid = { status: 'VALID', tran_id: 'BP123456', currency_type: 'BDT', currency_amount: '250.00', risk_level: '0' };
+
+  assert.deepEqual(isValidSslCommerzTransaction(valid, payment), { valid: true, requiresReview: false });
+  assert.equal(isValidSslCommerzTransaction({ ...valid, currency_amount: '249.00' }, payment).valid, false);
+  assert.equal(isValidSslCommerzTransaction({ ...valid, tran_id: 'OTHER' }, payment).valid, false);
+  assert.equal(isValidSslCommerzTransaction({ ...valid, currency_type: 'USD' }, payment).valid, false);
+  assert.deepEqual(isValidSslCommerzTransaction({ ...valid, risk_level: '1' }, payment), { valid: true, requiresReview: true });
+});
+
+test('payment API route loads with public callbacks and authenticated initiation', () => {
+  assert.doesNotThrow(() => require('../routes/paymentRoutes'));
+});

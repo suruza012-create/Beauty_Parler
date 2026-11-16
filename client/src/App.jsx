@@ -10,6 +10,7 @@ import Shop from './pages/Shop';
 import ProductDetails from './pages/ProductDetails';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import PaymentResult from './pages/PaymentResult';
 import About from './pages/About';
 import Gallery from './pages/Gallery';
 import Videos from './pages/Videos';
@@ -42,6 +43,7 @@ function App() {
               <Route path="/shop/:id" element={<ProductDetails />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<Checkout />} />
+              <Route path="/payment/result" element={<PaymentResult />} />
               <Route path="/about" element={<About />} />
               <Route path="/gallery" element={<Gallery />} />
               <Route path="/videos" element={<Videos />} />

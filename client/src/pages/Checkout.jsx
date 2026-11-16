@@ -11,6 +11,8 @@ const Checkout = () => {
   const { items, clearCart } = useCart();
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [gatewayEnabled, setGatewayEnabled] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ name: user?.name || '', phone: user?.phone || '', address: '', paymentMethod: 'cash', senderNumber: '', transactionId: '' });
   const [paymentMethods, setPaymentMethods] = useState([]);
 
@@ -18,9 +20,13 @@ const Checkout = () => {
     apiGet('/content/settings')
       .then(data => setPaymentMethods((data.settings?.paymentMethods || []).filter(method => method.isActive !== false)))
       .catch(() => setPaymentMethods([]));
+      apiGet('/payment/config')
+        .then(data => setGatewayEnabled(Boolean(data.sslcommerzEnabled)))
+        .catch(() => setGatewayEnabled(false));
   }, []);
 
   const selectedPaymentMethod = paymentMethods.find(method => String(method._id) === form.paymentMethod);
+      const isGatewaySelected = form.paymentMethod === 'sslcommerz';
 
   if (success) {
     return (
@@ -43,6 +49,7 @@ const Checkout = () => {
           setError('');
           if (!user) return setError('Please login before placing an order.');
           if (!items.length) return setError('Your cart is empty.');
+          setSubmitting(true);
           try {
             if (selectedPaymentMethod && !form.transactionId.trim()) {
               return setError('পেমেন্ট করার পর Transaction ID লিখুন।');
@@ -50,8 +57,13 @@ const Checkout = () => {
             if (selectedPaymentMethod && ['bkash', 'nagad', 'rocket'].includes(selectedPaymentMethod.provider) && !form.senderNumber.trim()) {
               return setError('যে নম্বর থেকে টাকা পাঠিয়েছেন সেটি লিখুন।');
             }
-            const paymentMethod = selectedPaymentMethod?.provider || 'cash';
+            const paymentMethod = isGatewaySelected ? 'sslcommerz' : (selectedPaymentMethod?.provider || 'cash');
             const orderResult = await apiPost('/order', { items: items.map(item => ({ productId: item.productId, quantity: item.quantity })), deliveryAddress: form.address, phone: form.phone, paymentMethod });
+            if (isGatewaySelected && orderResult.order?._id) {
+              const paymentResult = await apiPost('/payment/sslcommerz/initiate', { orderId: orderResult.order._id });
+              window.location.assign(paymentResult.gatewayUrl);
+              return;
+            }
             if (selectedPaymentMethod && orderResult.order?._id) {
               await apiPost('/payment', {
                 orderId: orderResult.order._id,
@@ -64,6 +76,7 @@ const Checkout = () => {
             clearCart();
             setSuccess(true);
           } catch (requestError) { setError(requestError.message); }
+          finally { setSubmitting(false); }
         }} className="bg-white p-6 sm:p-8 rounded-3xl shadow-xl space-y-4 border border-purple-100">
           <h2 className="text-xl font-black text-slate-900">Delivery & Payment Details</h2>
           <input type="text" placeholder="Full Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full p-3 bg-slate-50 border rounded-2xl text-xs font-bold" required />
@@ -73,6 +86,12 @@ const Checkout = () => {
             <label className="text-xs font-bold">Payment Method</label>
             <div className="grid grid-cols-2 gap-2 text-xs font-bold">
               <label className="p-3 bg-slate-50 border rounded-2xl flex items-center gap-2"><input type="radio" name="pay" value="cash" checked={form.paymentMethod === 'cash'} onChange={e => setForm({ ...form, paymentMethod: e.target.value })} /> Cash on Delivery</label>
+              {gatewayEnabled && (
+                <label className="p-3 bg-slate-50 border rounded-2xl flex items-center gap-2">
+                  <input type="radio" name="pay" value="sslcommerz" checked={isGatewaySelected} onChange={e => setForm({ ...form, paymentMethod: e.target.value })} />
+                  Online payment (bKash, cards, bank)
+                </label>
+              )}
               {paymentMethods.map(method => (
                 <label key={method._id} className="p-3 bg-slate-50 border rounded-2xl flex items-center gap-2">
                   <input type="radio" name="pay" value={method._id} checked={form.paymentMethod === String(method._id)} onChange={e => setForm({ ...form, paymentMethod: e.target.value })} />
@@ -94,7 +113,7 @@ const Checkout = () => {
             </div>
           )}
           {error && <p className="text-xs font-bold text-rose-600 bg-rose-50 rounded-xl p-3">{error}</p>}
-          <button type="submit" className="w-full py-4 bg-purple-700 text-white font-black text-xs rounded-2xl shadow-lg">Confirm Order</button>
+          <button type="submit" disabled={submitting} className="w-full py-4 bg-purple-700 text-white font-black text-xs rounded-2xl shadow-lg disabled:opacity-60">{submitting ? 'Processing...' : 'Confirm Order'}</button>
         </form>
       </div>
     </div>

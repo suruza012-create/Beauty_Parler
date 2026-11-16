@@ -17,7 +17,7 @@ const PaymentSchema = new mongoose.Schema({
   },
   method: {
     type: String,
-    enum: ['bkash', 'nagad', 'card', 'cash', 'rocket', 'bank'],
+    enum: ['bkash', 'nagad', 'card', 'cash', 'rocket', 'bank', 'sslcommerz'],
     required: true
   },
   mobileNumber: {
@@ -27,6 +27,10 @@ const PaymentSchema = new mongoose.Schema({
     type: String,
     unique: true
   },
+  gatewaySessionKey: { type: String, default: '' },
+  gatewayRedirectUrl: { type: String, default: '' },
+  validationId: { type: String, default: '' },
+  gatewayBankTransactionId: { type: String, default: '' },
   status: {
     type: String,
     enum: ['pending', 'success', 'failed', 'refunded'],

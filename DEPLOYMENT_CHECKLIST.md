@@ -23,6 +23,10 @@
    ADMIN_EMAIL=admin@example.com
    ADMIN_PASSWORD=StrongPassword123!
    PAYMENT_PROVIDER=manual
+   CLIENT_URL=https://your-client-domain.com
+   SSLCOMMERZ_STORE_ID=your_store_id
+   SSLCOMMERZ_STORE_PASSWORD=your_store_password
+   SSLCOMMERZ_IS_LIVE=false
    CLOUDINARY_CLOUD_NAME=your_cloud_name
    CLOUDINARY_API_KEY=your_api_key
    CLOUDINARY_API_SECRET=your_api_secret
@@ -81,6 +85,7 @@ Booking email updates and 20-24 hour appointment reminders are optional. Configu
 
 ## 5) Payment Setup
 
-- Do not enable live payment before merchant credentials are ready
-- Use `PAYMENT_PROVIDER=manual` until a verified gateway is configured
-- Final payment confirmation must happen in the backend, not only in the browser
+- Sandbox mode uses `SSLCOMMERZ_IS_LIVE=false`. Set `PAYMENT_PROVIDER=sslcommerz` only after adding sandbox or merchant credentials and deploying the public callback URLs.
+- Keep `SSLCOMMERZ_IS_LIVE=false` until sandbox flows and IPN validation are tested.
+- Switch to `SSLCOMMERZ_IS_LIVE=true` only with production merchant credentials.
+- Payment success is set by backend order-validation response, never by the browser redirect alone.
