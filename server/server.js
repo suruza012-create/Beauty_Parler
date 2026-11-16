@@ -24,6 +24,7 @@ const reportRoutes = require('./routes/reportRoutes');
 const contentRoutes = require('./routes/contentRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const { startBookingReminders } = require('./utils/bookingReminders');
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/uploads', express.static('uploads'));
 
 // Database Connect
 connectDB();
+startBookingReminders();
 
 // Routes
 app.use('/api/auth', authRoutes);

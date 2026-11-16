@@ -22,3 +22,9 @@ services:
         value: http://localhost:5173,http://localhost:5174
       - key: PAYMENT_PROVIDER
         value: manual
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false

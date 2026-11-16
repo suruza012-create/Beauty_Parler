@@ -23,8 +23,15 @@
    ADMIN_EMAIL=admin@example.com
    ADMIN_PASSWORD=StrongPassword123!
    PAYMENT_PROVIDER=manual
+   CLOUDINARY_CLOUD_NAME=your_cloud_name
+   CLOUDINARY_API_KEY=your_api_key
+   CLOUDINARY_API_SECRET=your_api_secret
    ```
 7. Verify: `https://your-backend-domain/health` returns HTTP 200.
+
+Cloudinary credentials are needed for persistent image/video uploads in production. Without them, uploads return a configuration error rather than saving files to temporary server storage.
+
+Booking email updates and 20-24 hour appointment reminders are optional. Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, and optionally `SMTP_FROM` in the backend environment to send booking request, status, and reminder emails. `BOOKING_TIMEZONE` defaults to `Asia/Dhaka`.
 
 ## 2) Client Site (Vercel / Netlify)
 

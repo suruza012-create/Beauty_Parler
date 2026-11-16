@@ -51,6 +51,10 @@ test('notification API route can be loaded', () => {
   assert.doesNotThrow(() => require('../routes/notificationRoutes'));
 });
 
+test('upload API route can be loaded with cloud storage support', () => {
+  assert.doesNotThrow(() => require('../routes/uploadRoutes'));
+});
+
 test('site settings validate payment account methods', async () => {
   const SiteSettings = require('../models/SiteSettings');
   const validSettings = new SiteSettings({
@@ -62,4 +66,24 @@ test('site settings validate payment account methods', async () => {
 
   await assert.doesNotReject(validSettings.validate());
   await assert.rejects(invalidSettings.validate());
+});
+
+test('booking schedule parses times and detects overlapping service durations', () => {
+  const { parseBookingTime, getDurationMinutes, intervalsOverlap } = require('../utils/bookingSchedule');
+
+  assert.equal(parseBookingTime('11:30 AM'), 690);
+  assert.equal(parseBookingTime('02:00 PM'), 840);
+  assert.equal(parseBookingTime('14:30'), 870);
+  assert.equal(parseBookingTime('25:00'), null);
+  assert.equal(getDurationMinutes('1.5 hours'), 90);
+  assert.equal(intervalsOverlap(600, 90, 660, 60), true);
+  assert.equal(intervalsOverlap(600, 60, 660, 60), false);
+});
+
+test('booking reminders use the configured local timezone', () => {
+  const { getReminderDelayMinutes } = require('../utils/bookingReminders');
+  const now = new Date('2026-11-16T00:00:00.000Z');
+
+  assert.equal(getReminderDelayMinutes({ bookingDate: '2026-11-17', bookingTime: '06:00 AM' }, now), 1440);
+  assert.equal(getReminderDelayMinutes({ bookingDate: '2026-11-16', bookingTime: '05:30 AM' }, now), -30);
 });

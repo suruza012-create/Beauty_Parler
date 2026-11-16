@@ -7,6 +7,48 @@
 const Booking = require('../models/Booking');
 const Service = require('../models/Service');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
+const { parseBookingTime, getDurationMinutes, intervalsOverlap } = require('../utils/bookingSchedule');
+const { sendEmail } = require('../utils/mailer');
+
+const emailBookingUpdate = async (userId, subject, text) => {
+  try {
+    const user = await User.findById(userId).select('email');
+    if (user?.email) await sendEmail({ to: user.email, subject, text });
+  } catch (error) {
+    console.error('Booking email could not be sent:', error.message);
+  }
+};
+
+const findScheduleConflict = async ({ service, bookingDate, bookingTime, staff, excludeBookingId }) => {
+  const requestedStart = parseBookingTime(bookingTime);
+  if (requestedStart === null) return { invalidTime: true, hasConflict: false };
+
+  const normalizedStaff = String(staff || '').trim();
+  const conflictScope = normalizedStaff ? { staff: normalizedStaff } : {};
+  const query = {
+    bookingDate,
+    status: { $in: ['pending', 'confirmed'] },
+    ...conflictScope
+  };
+  if (excludeBookingId) query._id = { $ne: excludeBookingId };
+
+  const existingBookings = await Booking.find(query).populate('serviceId', 'duration');
+  const requestedDuration = getDurationMinutes(service.duration);
+  return {
+    invalidTime: false,
+    hasConflict: existingBookings.some(existing => {
+      const existingStart = parseBookingTime(existing.bookingTime);
+      if (existingStart === null) return existing.bookingTime === bookingTime;
+      return intervalsOverlap(
+        requestedStart,
+        requestedDuration,
+        existingStart,
+        getDurationMinutes(existing.serviceId?.duration)
+      );
+    })
+  };
+};
 
 // ============================================
 // GET ALL BOOKINGS (Admin → সব, User → নিজের)
@@ -106,12 +148,25 @@ exports.createBooking = async (req, res) => {
         message: 'Please provide a valid service, booking date and booking time'
       });
     }
-    if (!await Service.exists({ _id: resolvedServiceId })) {
+    const service = await Service.findById(resolvedServiceId);
+    if (!service) {
       return res.status(400).json({
         success: false,
         message: 'Selected service was not found. Please refresh and select a live service.'
       });
     }
+
+    const schedule = await findScheduleConflict({ service, bookingDate, bookingTime, staff });
+    if (schedule.invalidTime) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid booking time' });
+    }
+    if (schedule.hasConflict) {
+      return res.status(409).json({
+        success: false,
+        message: 'This time overlaps with another active booking. Please choose another time.'
+      });
+    }
+
     const booking = await Booking.create({
       userId: resolvedUserId,
       serviceId: resolvedServiceId,
@@ -121,8 +176,26 @@ exports.createBooking = async (req, res) => {
       bookingDate,
       bookingTime,
       note: note || '',
-      status: status ? String(status).toLowerCase() : 'pending'
+      status: req.user.role === 'admin' && status ? String(status).toLowerCase() : 'pending'
     });
+
+    try {
+      await Notification.create({
+        userId: resolvedUserId,
+        title: 'Booking request received',
+        message: `${service.name} is requested for ${bookingDate} at ${bookingTime}. The parlour will confirm it shortly.`,
+        relatedId: booking._id,
+        relatedType: 'booking'
+      });
+    } catch (notificationError) {
+      console.error('Booking notification could not be created:', notificationError.message);
+    }
+    await emailBookingUpdate(
+      resolvedUserId,
+      'We received your booking request',
+      `${service.name} is requested for ${bookingDate} at ${bookingTime}. The parlour will confirm it shortly.`
+    );
+
     res.status(201).json({
       success: true,
       message: 'Booking created successfully',
@@ -174,10 +247,52 @@ exports.updateBooking = async (req, res) => {
       updates.status = String(req.body.status).toLowerCase();
     }
     Object.keys(updates).forEach(key => updates[key] === undefined && delete updates[key]);
+
+    const scheduleChanged = ['serviceId', 'bookingDate', 'bookingTime', 'staff'].some(key => updates[key] !== undefined);
+    const targetStatus = updates.status || booking.status;
+    if (scheduleChanged && ['pending', 'confirmed'].includes(targetStatus)) {
+      const targetService = await Service.findById(updates.serviceId || booking.serviceId);
+      if (!targetService) {
+        return res.status(400).json({ success: false, message: 'Selected service was not found' });
+      }
+      const schedule = await findScheduleConflict({
+        service: targetService,
+        bookingDate: updates.bookingDate || booking.bookingDate,
+        bookingTime: updates.bookingTime || booking.bookingTime,
+        staff: updates.staff === undefined ? booking.staff : updates.staff,
+        excludeBookingId: booking._id
+      });
+      if (schedule.invalidTime) {
+        return res.status(400).json({ success: false, message: 'Please provide a valid booking time' });
+      }
+      if (schedule.hasConflict) {
+        return res.status(409).json({ success: false, message: 'This time overlaps with another active booking. Please choose another time.' });
+      }
+    }
+
+    const previousStatus = booking.status;
     booking = await Booking.findByIdAndUpdate(req.params.id, updates, {
       new: true,
       runValidators: true
     });
+    if (req.user.role === 'admin' && booking.status !== previousStatus) {
+      try {
+        await Notification.create({
+          userId: booking.userId,
+          title: `Booking ${booking.status}`,
+          message: `Your booking status has been updated to ${booking.status}.`,
+          relatedId: booking._id,
+          relatedType: 'booking'
+        });
+      } catch (notificationError) {
+        console.error('Booking status notification could not be created:', notificationError.message);
+      }
+      await emailBookingUpdate(
+        booking.userId,
+        `Your booking is ${booking.status}`,
+        `Your booking status has been updated to ${booking.status}.`
+      );
+    }
     res.json({
       success: true,
       message: 'Booking updated successfully',
@@ -234,10 +349,44 @@ exports.updateBookingStatus = async (req, res) => {
         message: 'Booking not found'
       });
     }
-    booking = await Booking.findByIdAndUpdate(req.params.id, { status: String(status).toLowerCase() }, {
+    const nextStatus = String(status).toLowerCase();
+    if (['pending', 'confirmed'].includes(nextStatus)) {
+      const service = await Service.findById(booking.serviceId);
+      if (!service) return res.status(400).json({ success: false, message: 'Selected service was not found' });
+      const schedule = await findScheduleConflict({
+        service,
+        bookingDate: booking.bookingDate,
+        bookingTime: booking.bookingTime,
+        staff: booking.staff,
+        excludeBookingId: booking._id
+      });
+      if (schedule.hasConflict) {
+        return res.status(409).json({ success: false, message: 'This time overlaps with another active booking.' });
+      }
+    }
+    const previousStatus = booking.status;
+    booking = await Booking.findByIdAndUpdate(req.params.id, { status: nextStatus }, {
       new: true,
       runValidators: true
     });
+    if (booking.status !== previousStatus) {
+      try {
+        await Notification.create({
+          userId: booking.userId,
+          title: `Booking ${booking.status}`,
+          message: `Your booking status has been updated to ${booking.status}.`,
+          relatedId: booking._id,
+          relatedType: 'booking'
+        });
+      } catch (notificationError) {
+        console.error('Booking status notification could not be created:', notificationError.message);
+      }
+      await emailBookingUpdate(
+        booking.userId,
+        `Your booking is ${booking.status}`,
+        `Your booking status has been updated to ${booking.status}.`
+      );
+    }
     res.json({
       success: true,
       message: 'Booking status updated successfully',

@@ -112,6 +112,10 @@ const BookingSchema = new mongoose.Schema({
     required: false,
     maxlength: [200, 'Reason cannot be more than 200 characters']
   },
+  reminderSentAt: {
+    type: Date,
+    default: null
+  },
 
   /**
    * কখন তৈরি করা হয়েছে

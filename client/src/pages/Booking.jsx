@@ -49,6 +49,8 @@ const Booking = () => {
     try {
       await apiPost('/booking', {
         serviceId: selectedService._id,
+        customerName: formData.name,
+        phone: formData.phone,
         bookingDate: formData.date,
         bookingTime: formData.time,
         note: `${formData.name} | ${formData.phone} | ${formData.notes}`
@@ -68,9 +70,9 @@ const Booking = () => {
           <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-10 h-10" />
           </div>
-          <h2 className="text-2xl font-black text-slate-900">Booking Confirmed!</h2>
+          <h2 className="text-2xl font-black text-slate-900">Booking Request Received</h2>
           <p className="text-xs text-slate-500 font-medium">
-            ধন্যবাদ **{formData.name}**! আপনার বুকিং সফল হয়েছে। আমরা শীঘ্রই কল করে কনফার্ম করব।
+            ধন্যবাদ {formData.name}! আপনার বুকিং অনুরোধটি নেওয়া হয়েছে। পার্লার নিশ্চিত করলে dashboard-এ আপডেট দেখতে পাবেন।
           </p>
           <button 
             onClick={() => navigate('/dashboard')}
